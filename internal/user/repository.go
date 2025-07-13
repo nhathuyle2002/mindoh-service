@@ -33,6 +33,10 @@ func (r *UserRepository) Update(user *User) error {
 	return r.DB.Save(user).Error
 }
 
+func (r *UserRepository) UpdateFields(userID uint, fields map[string]interface{}) error {
+	return r.DB.Model(&User{}).Where("id = ?", userID).Updates(fields).Error
+}
+
 func (r *UserRepository) Delete(id uint) error {
 	return r.DB.Delete(&User{}, id).Error
 }

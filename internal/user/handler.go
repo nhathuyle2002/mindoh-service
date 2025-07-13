@@ -9,19 +9,19 @@ import (
 )
 
 type UserHandler struct {
-	Repo *UserRepository
+	authService IAuthService
+	Repo        *UserRepository
 }
 
-func NewUserHandler(db *gorm.DB) *UserHandler {
-	return &UserHandler{Repo: NewUserRepository(db)}
+func NewUserHandler(authService IAuthService, db *gorm.DB) *UserHandler {
+	return &UserHandler{
+		authService: authService,
+		Repo:        NewUserRepository(db),
+	}
 }
 
 func (h *UserHandler) Register(c *gin.Context) {
-	var req struct {
-		Username string `json:"username"`
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
+	var req UserRegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
@@ -35,6 +35,11 @@ func (h *UserHandler) Register(c *gin.Context) {
 		Username:     req.Username,
 		Email:        req.Email,
 		PasswordHash: passwordHash,
+		Name:         req.Name,
+		Birthdate:    req.Birthdate,
+		Phone:        req.Phone,
+		Address:      req.Address,
+		Role:         RoleUser, // Default role is user
 	}
 	if err := h.Repo.Create(user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User already exists or invalid data"})
@@ -44,10 +49,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 }
 
 func (h *UserHandler) Login(c *gin.Context) {
-	var req struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-	}
+	var req UserLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
@@ -57,7 +59,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
-	token, err := GenerateJWT(user.ID, user.Role)
+	token, err := h.authService.GenerateJWT(user.ID, user.Role)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
@@ -82,29 +84,41 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
-	var req struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
+	var req UserUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
+
+	fields := make(map[string]interface{})
 	if req.Email != "" {
-		user.Email = req.Email
+		fields["email"] = req.Email
 	}
-	if req.Password != "" {
-		passwordHash, err := HashPassword(req.Password)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
-			return
-		}
-		user.PasswordHash = passwordHash
+	if req.Name != "" {
+		fields["name"] = req.Name
 	}
-	if err := h.Repo.Update(&user); err != nil {
+	if req.Birthdate != "" {
+		fields["birthdate"] = req.Birthdate
+	}
+	if req.Phone != "" {
+		fields["phone"] = req.Phone
+	}
+	if req.Address != "" {
+		fields["address"] = req.Address
+	}
+
+	if len(fields) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No fields to update"})
+		return
+	}
+
+	if err := h.Repo.UpdateFields(user.ID, fields); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
 		return
 	}
+
+	// Fetch updated user
+	h.Repo.DB.First(&user, id)
 	c.JSON(http.StatusOK, gin.H{"user": user})
 }
 

@@ -1,15 +1,25 @@
 package user
 
 import (
+	"mindoh-service/config"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func RegisterUserRoutes(r *gin.Engine, db *gorm.DB) {
-	handler := NewUserHandler(db)
+func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, authService IAuthService) {
+	handler := NewUserHandler(authService, db)
+
+	// Public routes
 	r.POST("/api/register", handler.Register)
 	r.POST("/api/login", handler.Login)
-	r.GET("/api/users/:id", handler.GetUser)
-	r.PUT("/api/users/:id", handler.UpdateUser)
-	r.DELETE("/api/users/:id", handler.DeleteUser)
+
+	// Protected routes
+	auth := r.Group("/api")
+	auth.Use(AuthMiddleware(config.LoadConfig()))
+	{
+		auth.GET("/users/:id", handler.GetUser)
+		auth.PUT("/users/:id", handler.UpdateUser)
+		auth.DELETE("/users/:id", handler.DeleteUser)
+	}
 }
