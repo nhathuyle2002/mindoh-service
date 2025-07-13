@@ -44,6 +44,11 @@ func NewService() *Services {
 	}
 }
 
+func RegisterRoutes(r *gin.Engine, s *Services) {
+	// Register user routes
+	user.RegisterUserRoutes(r, s.Config, s.AuthService, s.UserService)
+}
+
 func main() {
 	// Initialize all services
 	services := NewService()
@@ -53,8 +58,8 @@ func main() {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
 
-	// Register routes with the initialized services
-	user.RegisterUserRoutes(r, services.DB, services.AuthService)
+	// Register application routes
+	RegisterRoutes(r, services)
 
 	r.Run()
 }

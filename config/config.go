@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"strconv"
 
 	"gopkg.in/yaml.v3"
 )
@@ -40,12 +39,6 @@ func LoadConfig() *Config {
 	expanded := expandEnvVars(string(file))
 	if err := yaml.Unmarshal([]byte(expanded), cfg); err != nil {
 		panic(fmt.Sprintf("Failed to parse config.yaml: %v", err))
-	}
-	// Convert port to int if needed
-	if portStr, ok := os.LookupEnv("POSTGRES_PORT"); ok {
-		if port, err := strconv.Atoi(portStr); err == nil {
-			cfg.DB.Port = port
-		}
 	}
 	return cfg
 }
