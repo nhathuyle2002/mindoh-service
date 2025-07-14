@@ -18,6 +18,7 @@ const (
 	ExpenseTypeSalary        ExpenseType = "salary"
 	ExpenseTypeTransport     ExpenseType = "transport"
 	ExpenseTypeEntertainment ExpenseType = "entertainment"
+	ExpenseTypeOther         ExpenseType = "other"
 )
 
 type Expense struct {
