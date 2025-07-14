@@ -1,8 +1,6 @@
 package expense
 
 import (
-	"time"
-
 	"gorm.io/gorm"
 )
 
@@ -40,18 +38,3 @@ func (r *ExpenseRepository) ListByFilter(filter ExpenseFilter) ([]Expense, error
 	err := db.Order("date desc").Find(&expenses).Error
 	return expenses, err
 }
-
-func (r *ExpenseRepository) SumByDay(userID uint, day time.Time, kind, typeStr string) (float64, error) {
-	var total float64
-	db := r.DB.Model(&Expense{}).Where("user_id = ? AND date = ?", userID, day)
-	if kind != "" {
-		db = db.Where("kind = ?", kind)
-	}
-	if typeStr != "" {
-		db = db.Where("type = ?", typeStr)
-	}
-	err := db.Select("COALESCE(SUM(amount),0)").Scan(&total).Error
-	return total, err
-}
-
-// Add more methods for summary by week/month/year as needed

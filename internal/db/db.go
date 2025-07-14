@@ -3,6 +3,7 @@ package db
 import (
 	"log"
 	"mindoh-service/config"
+	"mindoh-service/internal/expense"
 	"mindoh-service/internal/user"
 
 	"gorm.io/driver/postgres"
@@ -21,6 +22,7 @@ func ConnectDatabase(cfg *config.Config) {
 
 	// Auto-migrate User model
 	err = DB.AutoMigrate(&user.User{})
+	err = DB.AutoMigrate(&expense.Expense{})
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}

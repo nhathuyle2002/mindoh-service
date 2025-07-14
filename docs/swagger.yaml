@@ -219,53 +219,6 @@ paths:
       summary: Add a new expense
       tags:
       - expenses
-  /expenses/summary/day:
-    get:
-      consumes:
-      - application/json
-      description: Get total expenses for a specific day with optional filtering
-      parameters:
-      - description: Date (YYYY-MM-DD)
-        in: query
-        name: date
-        required: true
-        type: string
-      - description: Expense kind (expense/income)
-        in: query
-        name: kind
-        type: string
-      - description: Expense type (food/salary/transport/entertainment)
-        in: query
-        name: type
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Daily expense summary
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Invalid date format or missing date
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Get expense summary by day
-      tags:
-      - expenses
   /login:
     post:
       consumes:
