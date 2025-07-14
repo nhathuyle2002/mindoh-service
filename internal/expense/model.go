@@ -50,3 +50,10 @@ type ExpenseFilter struct {
 	From   time.Time `json:"from"`
 	To     time.Time `json:"to"`
 }
+
+type ExpenseSummary struct {
+	Expenses    []Expense               `json:"expenses"`
+	TotalByKind map[ExpenseKind]float64 `json:"total_by_kind"`
+	TotalByType map[ExpenseType]float64 `json:"total_by_type"`
+	TotalAmount float64                 `json:"total_amount"`
+}

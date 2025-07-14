@@ -15,5 +15,6 @@ func RegisterExpenseRoutes(r *gin.Engine, cfg *config.Config, service *ExpenseSe
 	{
 		group.POST("/", handler.AddExpense)
 		group.GET("/", handler.ListExpenses)
+		group.GET("/summary", handler.Summary)
 	}
 }

@@ -108,3 +108,45 @@ func (h *ExpenseHandler) ListExpenses(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, expenses)
 }
+
+// Summary godoc
+// @Summary Get expense summary
+// @Description Get summary of expenses with optional filtering
+// @Tags expenses
+// @Accept json
+// @Produce json
+// @Param user_id query int false "User ID"
+// @Param kind query string false "Expense kind (expense/income)"
+// @Param type query string false "Expense type (food/salary/transport/entertainment)"
+// @Param from query string false "Start date (YYYY-MM-DD)"
+// @Param to query string false "End date (YYYY-MM-DD)"
+// @Success 200 {object} ExpenseSummary "Expense summary"
+// @Failure 400 {object} map[string]interface{} "Invalid query parameters"
+// @Failure 403 {object} map[string]interface{} "Forbidden"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security BearerAuth
+// @Router /expenses/summary [get]
+func (h *ExpenseHandler) Summary(c *gin.Context) {
+	authCtx := user.GetAuthContext(c)
+	userID := authCtx.UserID
+	role := authCtx.Role
+	var filter ExpenseFilter
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameters"})
+		return
+	}
+	if role == user.RoleUser && filter.UserID != 0 && filter.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You can only view your own expenses"})
+		return
+	}
+	if role == user.RoleUser || filter.UserID == 0 {
+		filter.UserID = userID
+	}
+
+	summary, err := h.Service.Summary(filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch summary"})
+		return
+	}
+	c.JSON(http.StatusOK, summary)
+}
