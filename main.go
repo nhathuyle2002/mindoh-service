@@ -3,6 +3,7 @@ package main
 import (
 	"mindoh-service/config"
 	"mindoh-service/internal/db"
+	"mindoh-service/internal/expense"
 	"mindoh-service/internal/user"
 
 	"github.com/gin-gonic/gin"
@@ -12,10 +13,11 @@ import (
 
 // Services holds all the service instances for the application
 type Services struct {
-	Config      *config.Config
-	DB          *gorm.DB
-	UserService *user.UserService
-	AuthService user.IAuthService
+	Config         *config.Config
+	DB             *gorm.DB
+	UserService    *user.UserService
+	AuthService    user.IAuthService
+	ExpenseService *expense.ExpenseService
 }
 
 // NewService initializes all services for the application
@@ -36,17 +38,24 @@ func NewService() *Services {
 	// Initialize user service
 	userService := user.NewUserService(dbInstance)
 
+	// Initialize expense service
+	expenseRepo := expense.NewExpenseRepository(dbInstance)
+	expenseService := expense.NewExpenseService(expenseRepo)
+
 	return &Services{
-		Config:      cfg,
-		DB:          dbInstance,
-		AuthService: authService,
-		UserService: userService,
+		Config:         cfg,
+		DB:             dbInstance,
+		AuthService:    authService,
+		UserService:    userService,
+		ExpenseService: expenseService,
 	}
 }
 
 func RegisterRoutes(r *gin.Engine, s *Services) {
 	// Register user routes
 	user.RegisterUserRoutes(r, s.Config, s.AuthService, s.UserService)
+	// Register expense routes
+	expense.RegisterExpenseRoutes(r, s.Config, s.ExpenseService)
 }
 
 func main() {

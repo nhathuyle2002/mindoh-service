@@ -10,6 +10,11 @@ import (
 
 var authService *AuthService
 
+type AuthContext struct {
+	UserID uint `json:"user_id"`
+	Role   Role `json:"role"`
+}
+
 // AuthMiddleware checks JWT authentication and sets user info in context
 func AuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 	// Initialize auth service with the provided config
@@ -29,9 +34,25 @@ func AuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		// Set user info in context
-		c.Set("userID", userID)
-		c.Set("role", role)
+		// Set AuthContext in context
+		authCtx := AuthContext{
+			UserID: userID,
+			Role:   role,
+		}
+		c.Set("auth", authCtx)
 		c.Next()
 	}
+}
+
+// GetAuthContext retrieves the AuthContext from Gin context. Returns zero AuthContext if not set or wrong type.
+func GetAuthContext(c *gin.Context) AuthContext {
+	val, exists := c.Get("auth")
+	if !exists {
+		return AuthContext{}
+	}
+	authCtx, ok := val.(AuthContext)
+	if !ok {
+		return AuthContext{}
+	}
+	return authCtx
 }

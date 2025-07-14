@@ -8,8 +8,8 @@ import (
 )
 
 type Claims struct {
-	UserID uint   `json:"user_id"`
-	Role   string `json:"role"`
+	UserID uint `json:"user_id"`
+	Role   Role `json:"role"`
 	jwt.RegisteredClaims
 }
 
@@ -22,11 +22,11 @@ func NewAuthService(cfg *config.Config) *AuthService {
 }
 
 type IAuthService interface {
-	GenerateJWT(userID uint, role string) (string, error)
-	ParseAndValidateJWT(tokenString string) (uint, string, error)
+	GenerateJWT(userID uint, role Role) (string, error)
+	ParseAndValidateJWT(tokenString string) (uint, Role, error)
 }
 
-func (s *AuthService) GenerateJWT(userID uint, role string) (string, error) {
+func (s *AuthService) GenerateJWT(userID uint, role Role) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 	claims := &Claims{
 		UserID: userID,
@@ -39,7 +39,7 @@ func (s *AuthService) GenerateJWT(userID uint, role string) (string, error) {
 	return token.SignedString([]byte(s.cfg.JWT.Secret))
 }
 
-func (s *AuthService) ParseAndValidateJWT(tokenString string) (uint, string, error) {
+func (s *AuthService) ParseAndValidateJWT(tokenString string) (uint, Role, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 		return []byte(s.cfg.JWT.Secret), nil
