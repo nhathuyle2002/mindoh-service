@@ -1,7 +1,6 @@
 package expense
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -59,30 +58,20 @@ func (h *ExpenseHandler) ListExpenses(c *gin.Context) {
 	authCtx := user.GetAuthContext(c)
 	userID := authCtx.UserID
 	role := authCtx.Role
-	kind := c.Query("kind")
-	typeStr := c.Query("type")
-	var expenses []Expense
-	var err error
-	if role == user.RoleUser {
-		expenses, err = h.Service.ListExpenses(userID, kind, typeStr)
-	} else {
-		// admin can list all users' expenses if user_id is provided as query param
-		userIDParam := c.Query("user_id")
-		if userIDParam != "" {
-			// parse userIDParam to uint
-			var uid uint
-			_, errParse := fmt.Sscanf(userIDParam, "%d", &uid)
-			if errParse == nil {
-				expenses, err = h.Service.ListExpenses(uid, kind, typeStr)
-			} else {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user_id param"})
-				return
-			}
-		} else {
-			// list all expenses for all users
-			expenses, err = h.Service.ListExpenses(0, kind, typeStr)
-		}
+	var filter ExpenseFilter
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameters"})
+		return
 	}
+	if role == user.RoleUser && filter.UserID != 0 && filter.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You can only view your own expenses"})
+		return
+	}
+	if role == user.RoleUser || filter.UserID == 0 {
+		filter.UserID = userID
+	}
+
+	expenses, err := h.Service.ListExpenses(filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch expenses"})
 		return

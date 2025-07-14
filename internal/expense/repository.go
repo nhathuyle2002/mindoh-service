@@ -19,14 +19,23 @@ func (r *ExpenseRepository) Create(expense *Expense) error {
 	return r.DB.Create(expense).Error
 }
 
-func (r *ExpenseRepository) ListByUser(userID uint, kind, typeStr string) ([]Expense, error) {
+func (r *ExpenseRepository) ListByFilter(filter ExpenseFilter) ([]Expense, error) {
 	var expenses []Expense
-	db := r.DB.Where("user_id = ?", userID)
-	if kind != "" {
-		db = db.Where("kind = ?", kind)
+	db := r.DB.Model(&Expense{})
+	if filter.UserID != 0 {
+		db = db.Where("user_id = ?", filter.UserID)
 	}
-	if typeStr != "" {
-		db = db.Where("type = ?", typeStr)
+	if filter.Kind != "" {
+		db = db.Where("kind = ?", filter.Kind)
+	}
+	if filter.Type != "" {
+		db = db.Where("type = ?", filter.Type)
+	}
+	if !filter.From.IsZero() {
+		db = db.Where("date >= ?", filter.From)
+	}
+	if !filter.To.IsZero() {
+		db = db.Where("date <= ?", filter.To)
 	}
 	err := db.Order("date desc").Find(&expenses).Error
 	return expenses, err

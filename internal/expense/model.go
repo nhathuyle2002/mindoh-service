@@ -42,3 +42,11 @@ type ExpenseCreateRequest struct {
 	Description string      `json:"description"`
 	Date        time.Time   `json:"date"` // Date is optional, if not provided, current time will be used
 }
+
+type ExpenseFilter struct {
+	UserID uint      `json:"user_id"`
+	Kind   string    `json:"kind"`
+	Type   string    `json:"type"`
+	From   time.Time `json:"from"`
+	To     time.Time `json:"to"`
+}

@@ -17,8 +17,8 @@ func (s *ExpenseService) AddExpense(expense *Expense) error {
 	return s.Repo.Create(expense)
 }
 
-func (s *ExpenseService) ListExpenses(userID uint, kind, typeStr string) ([]Expense, error) {
-	return s.Repo.ListByUser(userID, kind, typeStr)
+func (s *ExpenseService) ListExpenses(filter ExpenseFilter) ([]Expense, error) {
+	return s.Repo.ListByFilter(filter)
 }
 
 func (s *ExpenseService) SummaryByDay(userID uint, day time.Time, kind, typeStr string) (float64, error) {
