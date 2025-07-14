@@ -1,0 +1,432 @@
+basePath: /api
+definitions:
+  expense.Expense:
+    properties:
+      amount:
+        type: number
+      created_at:
+        type: string
+      currency:
+        type: string
+      date:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      kind:
+        allOf:
+        - $ref: '#/definitions/expense.ExpenseKind'
+        description: expense or income
+      type:
+        allOf:
+        - $ref: '#/definitions/expense.ExpenseType'
+        description: e.g., food, salary, etc.
+      updated_at:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  expense.ExpenseCreateRequest:
+    properties:
+      amount:
+        type: number
+      currency:
+        description: e.g., USD, EUR
+        type: string
+      date:
+        description: Date is optional, if not provided, current time will be used
+        type: string
+      description:
+        type: string
+      kind:
+        allOf:
+        - $ref: '#/definitions/expense.ExpenseKind'
+        description: expense or income
+      type:
+        allOf:
+        - $ref: '#/definitions/expense.ExpenseType'
+        description: e.g., food, salary, etc.
+      user_id:
+        type: integer
+    type: object
+  expense.ExpenseKind:
+    enum:
+    - expense
+    - income
+    type: string
+    x-enum-varnames:
+    - ExpenseKindExpense
+    - ExpenseKindIncome
+  expense.ExpenseType:
+    enum:
+    - food
+    - salary
+    - transport
+    - entertainment
+    type: string
+    x-enum-varnames:
+    - ExpenseTypeFood
+    - ExpenseTypeSalary
+    - ExpenseTypeTransport
+    - ExpenseTypeEntertainment
+  user.UserLoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  user.UserRegisterRequest:
+    properties:
+      address:
+        type: string
+      birthdate:
+        type: string
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      phone:
+        type: string
+      username:
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+  user.UserUpdateRequest:
+    properties:
+      address:
+        type: string
+      birthdate:
+        type: string
+      email:
+        type: string
+      name:
+        type: string
+      phone:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: A personal finance management API service
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Mindoh Service API
+  version: "1.0"
+paths:
+  /expenses:
+    get:
+      consumes:
+      - application/json
+      description: Get list of expenses with optional filtering
+      parameters:
+      - description: User ID
+        in: query
+        name: user_id
+        type: integer
+      - description: Expense kind (expense/income)
+        in: query
+        name: kind
+        type: string
+      - description: Expense type (food/salary/transport/entertainment)
+        in: query
+        name: type
+        type: string
+      - description: Start date (YYYY-MM-DD)
+        in: query
+        name: from
+        type: string
+      - description: End date (YYYY-MM-DD)
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of expenses
+          schema:
+            items:
+              $ref: '#/definitions/expense.Expense'
+            type: array
+        "400":
+          description: Invalid query parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List expenses
+      tags:
+      - expenses
+    post:
+      consumes:
+      - application/json
+      description: Create a new expense record
+      parameters:
+      - description: Expense details
+        in: body
+        name: expense
+        required: true
+        schema:
+          $ref: '#/definitions/expense.ExpenseCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Expense created successfully
+          schema:
+            $ref: '#/definitions/expense.Expense'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add a new expense
+      tags:
+      - expenses
+  /expenses/summary/day:
+    get:
+      consumes:
+      - application/json
+      description: Get total expenses for a specific day with optional filtering
+      parameters:
+      - description: Date (YYYY-MM-DD)
+        in: query
+        name: date
+        required: true
+        type: string
+      - description: Expense kind (expense/income)
+        in: query
+        name: kind
+        type: string
+      - description: Expense type (food/salary/transport/entertainment)
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Daily expense summary
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid date format or missing date
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get expense summary by day
+      tags:
+      - expenses
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user and return JWT token
+      parameters:
+      - description: Login credentials
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/user.UserLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Invalid credentials
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Login user
+      tags:
+      - auth
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account
+      parameters:
+      - description: User registration details
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/user.UserRegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User created successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Register a new user
+      tags:
+      - auth
+  /users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete user by user ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User deleted successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to delete user
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete user
+      tags:
+      - users
+    get:
+      consumes:
+      - application/json
+      description: Get user information by user ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User found
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: User not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get user by ID
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      description: Update user information by user ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: User update details
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/user.UserUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: User not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update user information
+      tags:
+      - users
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

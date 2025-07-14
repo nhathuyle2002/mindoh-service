@@ -18,6 +18,19 @@ func NewExpenseHandler(service *ExpenseService) *ExpenseHandler {
 	return &ExpenseHandler{Service: service}
 }
 
+// AddExpense godoc
+// @Summary Add a new expense
+// @Description Create a new expense record
+// @Tags expenses
+// @Accept json
+// @Produce json
+// @Param expense body ExpenseCreateRequest true "Expense details"
+// @Success 201 {object} Expense "Expense created successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 403 {object} map[string]interface{} "Forbidden"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security BearerAuth
+// @Router /expenses [post]
 func (h *ExpenseHandler) AddExpense(c *gin.Context) {
 	var req ExpenseCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -54,6 +67,23 @@ func (h *ExpenseHandler) AddExpense(c *gin.Context) {
 	c.JSON(http.StatusCreated, expense)
 }
 
+// ListExpenses godoc
+// @Summary List expenses
+// @Description Get list of expenses with optional filtering
+// @Tags expenses
+// @Accept json
+// @Produce json
+// @Param user_id query int false "User ID"
+// @Param kind query string false "Expense kind (expense/income)"
+// @Param type query string false "Expense type (food/salary/transport/entertainment)"
+// @Param from query string false "Start date (YYYY-MM-DD)"
+// @Param to query string false "End date (YYYY-MM-DD)"
+// @Success 200 {array} Expense "List of expenses"
+// @Failure 400 {object} map[string]interface{} "Invalid query parameters"
+// @Failure 403 {object} map[string]interface{} "Forbidden"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security BearerAuth
+// @Router /expenses [get]
 func (h *ExpenseHandler) ListExpenses(c *gin.Context) {
 	authCtx := user.GetAuthContext(c)
 	userID := authCtx.UserID
@@ -79,7 +109,21 @@ func (h *ExpenseHandler) ListExpenses(c *gin.Context) {
 	c.JSON(http.StatusOK, expenses)
 }
 
-// Example: GET /expenses/summary/day?date=2025-07-13&kind=expense&type=food
+// SummaryByDay godoc
+// @Summary Get expense summary by day
+// @Description Get total expenses for a specific day with optional filtering
+// @Tags expenses
+// @Accept json
+// @Produce json
+// @Param date query string true "Date (YYYY-MM-DD)"
+// @Param kind query string false "Expense kind (expense/income)"
+// @Param type query string false "Expense type (food/salary/transport/entertainment)"
+// @Success 200 {object} map[string]interface{} "Daily expense summary"
+// @Failure 400 {object} map[string]interface{} "Invalid date format or missing date"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security BearerAuth
+// @Router /expenses/summary/day [get]
 func (h *ExpenseHandler) SummaryByDay(c *gin.Context) {
 	authCtx := user.GetAuthContext(c)
 	userID := authCtx.UserID
