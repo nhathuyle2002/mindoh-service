@@ -2,6 +2,7 @@ package main
 
 import (
 	"mindoh-service/config"
+	"mindoh-service/internal/auth"
 	"mindoh-service/internal/db"
 	"mindoh-service/internal/expense"
 	"mindoh-service/internal/user"
@@ -41,7 +42,7 @@ type Services struct {
 	Config         *config.Config
 	DB             *gorm.DB
 	UserService    *user.UserService
-	AuthService    user.IAuthService
+	AuthService    auth.IAuthService
 	ExpenseService *expense.ExpenseService
 }
 
@@ -58,7 +59,7 @@ func NewService() *Services {
 	dbInstance := db.GetDB()
 
 	// Initialize auth service
-	authService := user.NewAuthService(cfg)
+	authService := auth.NewAuthService(cfg)
 
 	// Initialize user service
 	userService := user.NewUserService(dbInstance)
@@ -78,9 +79,9 @@ func NewService() *Services {
 
 func RegisterRoutes(r *gin.Engine, s *Services) {
 	// Register user routes
-	user.RegisterUserRoutes(r, s.Config, s.AuthService, s.UserService)
+	user.RegisterUserRoutes(r, s.AuthService, s.UserService)
 	// Register expense routes
-	expense.RegisterExpenseRoutes(r, s.Config, s.ExpenseService)
+	expense.RegisterExpenseRoutes(r, s.AuthService, s.ExpenseService)
 }
 
 func main() {

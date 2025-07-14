@@ -13,6 +13,10 @@ func (s *ExpenseService) AddExpense(expense *Expense) error {
 	return s.Repo.Create(expense)
 }
 
+func (s *ExpenseService) UpdateExpense(expense *Expense) error {
+	return s.Repo.Update(expense)
+}
+
 func (s *ExpenseService) ListExpenses(filter ExpenseFilter) ([]Expense, error) {
 	return s.Repo.ListByFilter(filter)
 }

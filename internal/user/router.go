@@ -1,12 +1,12 @@
 package user
 
 import (
-	"mindoh-service/config"
+	"mindoh-service/internal/auth"
 
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterUserRoutes(r *gin.Engine, cfg *config.Config, authService IAuthService, userService *UserService) {
+func RegisterUserRoutes(r *gin.Engine, authService auth.IAuthService, userService *UserService) {
 	handler := NewUserHandler(authService, userService)
 
 	// Public routes
@@ -15,7 +15,7 @@ func RegisterUserRoutes(r *gin.Engine, cfg *config.Config, authService IAuthServ
 
 	// Protected routes
 	auth := r.Group("/api")
-	auth.Use(AuthMiddleware(cfg))
+	auth.Use(authService.AuthMiddleware())
 	{
 		auth.GET("/users/:id", handler.GetUser)
 		auth.PUT("/users/:id", handler.UpdateUser)

@@ -1,18 +1,19 @@
 package user
 
 import (
-	"fmt"
+	"mindoh-service/common/utils"
+	"mindoh-service/internal/auth"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
 type UserHandler struct {
-	authService IAuthService
+	authService auth.IAuthService
 	userService *UserService
 }
 
-func NewUserHandler(authService IAuthService, userService *UserService) *UserHandler {
+func NewUserHandler(authService auth.IAuthService, userService *UserService) *UserHandler {
 	return &UserHandler{
 		authService: authService,
 		userService: userService,
@@ -42,7 +43,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 		Birthdate: req.Birthdate,
 		Phone:     req.Phone,
 		Address:   req.Address,
-		Role:      RoleUser,
+		Role:      auth.RoleUser,
 	}
 	user.PasswordHash, _ = HashPassword(req.Password)
 	if err := h.userService.CreateUser(user); err != nil {
@@ -95,7 +96,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 // @Router /users/{id} [get]
 func (h *UserHandler) GetUser(c *gin.Context) {
 	id := c.Param("id")
-	user, err := h.userService.GetUserByID(parseUint(id))
+	user, err := h.userService.GetUserByID(utils.ParseUint(id))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
@@ -123,7 +124,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
-	user, err := h.userService.GetUserByID(parseUint(id))
+	user, err := h.userService.GetUserByID(utils.ParseUint(id))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
@@ -164,15 +165,9 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 // @Router /users/{id} [delete]
 func (h *UserHandler) DeleteUser(c *gin.Context) {
 	id := c.Param("id")
-	if err := h.userService.DeleteUser(parseUint(id)); err != nil {
+	if err := h.userService.DeleteUser(utils.ParseUint(id)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "User deleted"})
-}
-
-func parseUint(s string) uint {
-	var i uint
-	fmt.Sscanf(s, "%d", &i)
-	return i
 }

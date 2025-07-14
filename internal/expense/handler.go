@@ -4,7 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	"mindoh-service/internal/user"
+	"mindoh-service/common/utils"
+	"mindoh-service/internal/auth"
 
 	"github.com/gin-gonic/gin"
 )
@@ -37,14 +38,14 @@ func (h *ExpenseHandler) AddExpense(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
-	authCtx := user.GetAuthContext(c)
+	authCtx := auth.GetAuthContext(c)
 	userID := authCtx.UserID
 	role := authCtx.Role
-	if role == user.RoleUser && req.UserID != 0 && req.UserID != userID {
+	if role == auth.RoleUser && req.UserID != 0 && req.UserID != userID {
 		c.JSON(http.StatusForbidden, gin.H{"error": "You can only add your own expenses"})
 		return
 	}
-	if role == user.RoleUser || req.UserID == 0 {
+	if role == auth.RoleUser || req.UserID == 0 {
 		req.UserID = userID
 	}
 	// Set date to now if not provided
@@ -67,6 +68,71 @@ func (h *ExpenseHandler) AddExpense(c *gin.Context) {
 	c.JSON(http.StatusCreated, expense)
 }
 
+// UpdateExpense godoc
+// @Summary Update an existing expense
+// @Description Update details of an existing expense
+// @Tags expenses
+// @Accept json
+// @Produce json
+// @Param id path int true "Expense ID"
+// @Param expense body ExpenseUpdateRequest true "Expense update details"
+// @Success 200 {object} Expense "Expense updated successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 403 {object} map[string]interface{} "Forbidden"
+// @Failure 404 {object} map[string]interface{} "Expense not found"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security BearerAuth
+// @Router /expenses/{id} [put]
+func (h *ExpenseHandler) UpdateExpense(c *gin.Context) {
+	var req ExpenseUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+	authCtx := auth.GetAuthContext(c)
+	userID := authCtx.UserID
+	expenseID := utils.ParseUint(c.Param("id"))
+
+	// Fetch existing expense to check ownership
+	expense, err := h.Service.Repo.GetByID(expenseID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Expense not found"})
+		return
+	}
+
+	role := authCtx.Role
+	if role == auth.RoleUser && expense.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You can only add your own expenses"})
+		return
+	}
+
+	// Update fields if provided
+	if req.Amount != nil {
+		expense.Amount = *req.Amount
+	}
+	if req.Currency != nil {
+		expense.Currency = *req.Currency
+	}
+	if req.Kind != nil {
+		expense.Kind = *req.Kind
+	}
+	if req.Type != nil {
+		expense.Type = *req.Type
+	}
+	if req.Description != nil {
+		expense.Description = *req.Description
+	}
+	if req.Date != nil {
+		expense.Date = *req.Date
+	}
+
+	if err := h.Service.UpdateExpense(expense); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update expense"})
+		return
+	}
+	c.JSON(http.StatusOK, expense)
+}
+
 // ListExpenses godoc
 // @Summary List expenses
 // @Description Get list of expenses with optional filtering
@@ -85,7 +151,7 @@ func (h *ExpenseHandler) AddExpense(c *gin.Context) {
 // @Security BearerAuth
 // @Router /expenses [get]
 func (h *ExpenseHandler) ListExpenses(c *gin.Context) {
-	authCtx := user.GetAuthContext(c)
+	authCtx := auth.GetAuthContext(c)
 	userID := authCtx.UserID
 	role := authCtx.Role
 	var filter ExpenseFilter
@@ -93,11 +159,11 @@ func (h *ExpenseHandler) ListExpenses(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameters"})
 		return
 	}
-	if role == user.RoleUser && filter.UserID != 0 && filter.UserID != userID {
+	if role == auth.RoleUser && filter.UserID != 0 && filter.UserID != userID {
 		c.JSON(http.StatusForbidden, gin.H{"error": "You can only view your own expenses"})
 		return
 	}
-	if role == user.RoleUser || filter.UserID == 0 {
+	if role == auth.RoleUser || filter.UserID == 0 {
 		filter.UserID = userID
 	}
 
@@ -127,7 +193,7 @@ func (h *ExpenseHandler) ListExpenses(c *gin.Context) {
 // @Security BearerAuth
 // @Router /expenses/summary [get]
 func (h *ExpenseHandler) Summary(c *gin.Context) {
-	authCtx := user.GetAuthContext(c)
+	authCtx := auth.GetAuthContext(c)
 	userID := authCtx.UserID
 	role := authCtx.Role
 	var filter ExpenseFilter
@@ -135,11 +201,11 @@ func (h *ExpenseHandler) Summary(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameters"})
 		return
 	}
-	if role == user.RoleUser && filter.UserID != 0 && filter.UserID != userID {
+	if role == auth.RoleUser && filter.UserID != 0 && filter.UserID != userID {
 		c.JSON(http.StatusForbidden, gin.H{"error": "You can only view your own expenses"})
 		return
 	}
-	if role == user.RoleUser || filter.UserID == 0 {
+	if role == auth.RoleUser || filter.UserID == 0 {
 		filter.UserID = userID
 	}
 

@@ -1,16 +1,10 @@
 package user
 
 import (
+	"mindoh-service/internal/auth"
 	"time"
 
 	"gorm.io/gorm"
-)
-
-type Role string
-
-const (
-	RoleAdmin Role = "admin"
-	RoleUser  Role = "user"
 )
 
 type User struct {
@@ -18,7 +12,7 @@ type User struct {
 	Username     string         `gorm:"unique;not null" json:"username"`
 	Email        string         `gorm:"unique;not null" json:"email"`
 	PasswordHash string         `gorm:"not null" json:"-"`
-	Role         Role           `gorm:"default:user" json:"role"`
+	Role         auth.Role      `gorm:"default:user" json:"role"`
 	Name         string         `json:"name,omitempty"`
 	Birthdate    string         `json:"birthdate,omitempty"`
 	Phone        string         `json:"phone,omitempty"`

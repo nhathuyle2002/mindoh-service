@@ -13,8 +13,21 @@ func NewExpenseRepository(db *gorm.DB) *ExpenseRepository {
 	return &ExpenseRepository{DB: db}
 }
 
+func (r *ExpenseRepository) GetByID(id uint) (*Expense, error) {
+	var expense Expense
+	err := r.DB.First(&expense, id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &expense, nil
+}
+
 func (r *ExpenseRepository) Create(expense *Expense) error {
 	return r.DB.Create(expense).Error
+}
+
+func (r *ExpenseRepository) Update(expense *Expense) error {
+	return r.DB.Save(expense).Error
 }
 
 func (r *ExpenseRepository) ListByFilter(filter ExpenseFilter) ([]Expense, error) {

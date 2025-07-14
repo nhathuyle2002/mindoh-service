@@ -58,3 +58,12 @@ type ExpenseSummary struct {
 	TotalByType map[ExpenseType]float64 `json:"total_by_type"`
 	TotalAmount float64                 `json:"total_amount"`
 }
+
+type ExpenseUpdateRequest struct {
+	Amount      *float64     `json:"amount,omitempty"`
+	Currency    *string      `json:"currency,omitempty"`
+	Kind        *ExpenseKind `json:"kind,omitempty"`
+	Type        *ExpenseType `json:"type,omitempty"`
+	Description *string      `json:"description,omitempty"`
+	Date        *time.Time   `json:"date,omitempty"`
+}
