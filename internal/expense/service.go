@@ -27,17 +27,15 @@ func (s *ExpenseService) Summary(filter ExpenseFilter) (*ExpenseSummary, error) 
 		return &ExpenseSummary{}, err
 	}
 	totalByKind := make(map[ExpenseKind]float64)
-	totalByType := make(map[ExpenseType]float64)
-	totalAmount := 0.0
+	totalByType := make(map[string]float64)
 	for _, expense := range expenses {
 		totalByKind[expense.Kind] += expense.Amount
 		totalByType[expense.Type] += expense.Amount
-		totalAmount += expense.Amount
 	}
 	return &ExpenseSummary{
 		Expenses:    expenses,
 		TotalByKind: totalByKind,
 		TotalByType: totalByType,
-		TotalAmount: totalAmount,
+		TotalAmount: totalByKind[ExpenseKindIncome] - totalByKind[ExpenseKindExpense],
 	}, nil
 }
