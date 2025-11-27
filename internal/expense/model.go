@@ -35,11 +35,12 @@ type ExpenseCreateRequest struct {
 }
 
 type ExpenseFilter struct {
-	UserID uint      `form:"user_id" json:"user_id"`
-	Kind   string    `form:"kind" json:"kind"`
-	Type   string    `form:"type" json:"type"`
-	From   time.Time `form:"from" json:"from"`
-	To     time.Time `form:"to" json:"to"`
+	UserID   uint      `form:"user_id" json:"user_id"`
+	Kind     string    `form:"kind" json:"kind"`
+	Type     string    `form:"type" json:"type"`
+	Currency string    `form:"currency" json:"currency"`
+	From     time.Time `form:"from" json:"from"`
+	To       time.Time `form:"to" json:"to"`
 }
 
 type ExpenseSummary struct {

@@ -42,6 +42,9 @@ func (r *ExpenseRepository) ListByFilter(filter ExpenseFilter) ([]Expense, error
 	if filter.Type != "" {
 		db = db.Where("type = ?", filter.Type)
 	}
+	if filter.Currency != "" {
+		db = db.Where("currency = ?", filter.Currency)
+	}
 	if !filter.From.IsZero() {
 		db = db.Where("date >= ?", filter.From)
 	}
