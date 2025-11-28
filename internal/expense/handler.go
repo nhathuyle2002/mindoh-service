@@ -228,3 +228,17 @@ func (h *ExpenseHandler) GetExchangeRates(c *gin.Context) {
 		"rates":         rates,
 	})
 }
+
+// GetAvailableCurrencies godoc
+// @Summary Get available currencies
+// @Description Get list of available currencies
+// @Tags expenses
+// @Produce json
+// @Success 200 {object} map[string]interface{} "List of available currencies"
+// @Security BearerAuth
+// @Router /expenses/currencies [get]
+func (h *ExpenseHandler) GetAvailableCurrencies(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"currencies": AvailableCurrencies,
+	})
+}

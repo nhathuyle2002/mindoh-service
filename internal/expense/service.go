@@ -31,10 +31,10 @@ func (s *ExpenseService) Summary(filter ExpenseFilter) (*ExpenseSummary, error) 
 		return &ExpenseSummary{}, err
 	}
 
-	// Set default currency to VND if not specified
-	defaultCurrency := filter.DefaultCurrency
-	if defaultCurrency == "" {
-		defaultCurrency = "VND"
+	// Set original currency (conversion target) to VND if not specified
+	originalCurrency := filter.OriginalCurrency
+	if originalCurrency == "" {
+		originalCurrency = "VND"
 	}
 
 	// If currencies filter is specified, return summary for those currencies only (no conversion)
@@ -42,8 +42,8 @@ func (s *ExpenseService) Summary(filter ExpenseFilter) (*ExpenseSummary, error) 
 		return s.summarizeForCurrencies(expenses, filter.Currencies), nil
 	}
 
-	// Otherwise, return converted summary in default currency + breakdown by currency
-	return s.summarizeWithConversion(expenses, defaultCurrency), nil
+	// Otherwise, return converted summary in original currency + breakdown by currency
+	return s.summarizeWithConversion(expenses, originalCurrency), nil
 }
 
 func (s *ExpenseService) summarizeForCurrencies(expenses []Expense, currencies []string) *ExpenseSummary {
@@ -76,7 +76,7 @@ func (s *ExpenseService) summarizeForCurrencies(expenses []Expense, currencies [
 	}
 }
 
-func (s *ExpenseService) summarizeWithConversion(expenses []Expense, defaultCurrency string) *ExpenseSummary {
+func (s *ExpenseService) summarizeWithConversion(expenses []Expense, originalCurrency string) *ExpenseSummary {
 	var totalIncome, totalExpense float64
 	totalByType := make(map[string]float64)
 	byCurrency := make(map[string]*CurrencySummary)
@@ -84,10 +84,10 @@ func (s *ExpenseService) summarizeWithConversion(expenses []Expense, defaultCurr
 	// Get current exchange rates
 	exchangeRates := GetExchangeRateService().GetRates()
 
-	// Get exchange rate for default currency
-	defaultRate := exchangeRates[defaultCurrency]
-	if defaultRate == 0 {
-		defaultRate = 1
+	// Get exchange rate for original currency
+	targetRate := exchangeRates[originalCurrency]
+	if targetRate == 0 {
+		targetRate = 1
 	}
 
 	for _, expense := range expenses {
@@ -96,8 +96,8 @@ func (s *ExpenseService) summarizeWithConversion(expenses []Expense, defaultCurr
 		if exchangeRate == 0 {
 			exchangeRate = 1
 		}
-		// Convert to default currency (VND rate / default rate)
-		convertedAmount := expense.Amount * exchangeRate / defaultRate
+		// Convert to original currency (VND rate / target rate)
+		convertedAmount := expense.Amount * exchangeRate / targetRate
 
 		// Add to converted totals (in VND)
 		if expense.Kind == ExpenseKindIncome {
@@ -124,7 +124,7 @@ func (s *ExpenseService) summarizeWithConversion(expenses []Expense, defaultCurr
 
 	return &ExpenseSummary{
 		Expenses:     expenses,
-		Currency:     defaultCurrency, // Converted to default currency
+		Currency:     originalCurrency, // Converted to selected original currency
 		TotalIncome:  totalIncome,
 		TotalExpense: totalExpense,
 		Balance:      totalIncome - totalExpense,

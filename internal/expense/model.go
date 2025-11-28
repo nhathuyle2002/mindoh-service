@@ -11,6 +11,9 @@ const (
 	ExpenseKindIncome  ExpenseKind = "income"
 )
 
+// Available currencies
+var AvailableCurrencies = []string{"VND", "USD"}
+
 type Expense struct {
 	ID          uint        `gorm:"primaryKey" json:"id"`
 	UserID      uint        `gorm:"not null" json:"user_id"`
@@ -35,13 +38,13 @@ type ExpenseCreateRequest struct {
 }
 
 type ExpenseFilter struct {
-	UserID          uint      `form:"user_id" json:"user_id"`
-	Kind            string    `form:"kind" json:"kind"`
-	Type            string    `form:"type" json:"type"`
-	Currencies      []string  `form:"currencies" json:"currencies"`             // Filter by multiple currencies
-	DefaultCurrency string    `form:"default_currency" json:"default_currency"` // Currency to use for conversion
-	From            time.Time `form:"from" json:"from"`
-	To              time.Time `form:"to" json:"to"`
+	UserID           uint      `form:"user_id" json:"user_id"`
+	Kind             string    `form:"kind" json:"kind"`
+	Type             string    `form:"type" json:"type"`
+	Currencies       []string  `form:"currencies" json:"currencies"`               // Filter by multiple currencies
+	OriginalCurrency string    `form:"original_currency" json:"original_currency"` // Currency to convert totals into when no currency filter
+	From             time.Time `form:"from" json:"from"`
+	To               time.Time `form:"to" json:"to"`
 }
 
 type ExpenseSummary struct {
