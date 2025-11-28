@@ -52,6 +52,8 @@ func (h *ExpenseHandler) AddExpense(c *gin.Context) {
 	if req.Date.IsZero() {
 		req.Date = time.Now()
 	}
+	// Normalize date to start of day (00:00:00)
+	req.Date = time.Date(req.Date.Year(), req.Date.Month(), req.Date.Day(), 0, 0, 0, 0, req.Date.Location())
 	expense := Expense{
 		UserID:      req.UserID,
 		Amount:      req.Amount,
@@ -123,7 +125,9 @@ func (h *ExpenseHandler) UpdateExpense(c *gin.Context) {
 		expense.Description = *req.Description
 	}
 	if req.Date != nil {
-		expense.Date = *req.Date
+		// Normalize date to start of day (00:00:00)
+		normalizedDate := time.Date(req.Date.Year(), req.Date.Month(), req.Date.Day(), 0, 0, 0, 0, req.Date.Location())
+		expense.Date = normalizedDate
 	}
 
 	if err := h.Service.UpdateExpense(expense); err != nil {
