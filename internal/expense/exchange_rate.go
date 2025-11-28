@@ -17,12 +17,13 @@ type ExchangeRateService struct {
 	cacheTTL   time.Duration
 }
 
-// ExchangeRateAPIResponse represents the response from exchangerate-api.com
+// ExchangeRateAPIResponse represents the response from fawazahmed0 currency API
 type ExchangeRateAPIResponse struct {
-	Result            string             `json:"result"`
-	BaseCode          string             `json:"base_code"`
-	ConversionRates   map[string]float64 `json:"conversion_rates"`
-	TimeLastUpdateUTC string             `json:"time_last_update_utc"`
+	Date  string             `json:"date"`
+	Base  string             `json:"base"`  // For fallback API format
+	Rates map[string]float64 `json:"rates"` // For fallback API format
+	// For primary API format (nested structure)
+	VND map[string]float64 `json:"vnd"`
 }
 
 var globalExchangeRateService *ExchangeRateService
@@ -33,7 +34,7 @@ func GetExchangeRateService() *ExchangeRateService {
 	once.Do(func() {
 		globalExchangeRateService = &ExchangeRateService{
 			rates:      make(map[string]float64),
-			cacheTTL:   1 * time.Hour, // Cache for 1 hour
+			cacheTTL:   6 * time.Hour, // Cache for 6 hours
 			lastUpdate: time.Time{},
 		}
 		// Initialize with default rates in case API fails
@@ -50,14 +51,19 @@ func GetExchangeRateService() *ExchangeRateService {
 
 // fetchRates fetches exchange rates from the API
 func (e *ExchangeRateService) fetchRates() {
-	// Using exchangerate-api.com free tier (1500 requests/month)
-	// Base currency is VND
-	url := "https://api.exchangerate-api.com/v4/latest/VND"
+	// Using fawazahmed0 currency API - free with no rate limits
+	// Primary URL via CDN
+	url := "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/vnd.json"
 
 	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Printf("Failed to fetch exchange rates: %v\n", err)
-		return
+		// Try fallback URL
+		url = "https://latest.currency-api.pages.dev/v1/currencies/vnd.json"
+		resp, err = http.Get(url)
+		if err != nil {
+			fmt.Printf("Failed to fetch exchange rates from both URLs: %v\n", err)
+			return
+		}
 	}
 	defer resp.Body.Close()
 
@@ -78,25 +84,23 @@ func (e *ExchangeRateService) fetchRates() {
 		return
 	}
 
-	if apiResp.Result != "success" {
-		fmt.Printf("Exchange rate API returned non-success result: %s\n", apiResp.Result)
-		return
-	}
-
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	// Convert rates to VND base
-	// The API returns rates FROM VND, so we need to invert them
+	// The API returns rates FROM VND to other currencies
 	// For example: 1 VND = 0.00004 USD means 1 USD = 25000 VND
+	// We need to invert to get VND per currency
 	newRates := make(map[string]float64)
 	newRates["VND"] = 1 // VND to VND is always 1
 
-	if usdRate, ok := apiResp.ConversionRates["USD"]; ok && usdRate > 0 {
-		newRates["USD"] = 1 / usdRate // Invert to get VND per USD
-	}
-	if eurRate, ok := apiResp.ConversionRates["EUR"]; ok && eurRate > 0 {
-		newRates["EUR"] = 1 / eurRate // Invert to get VND per EUR
+	// The response has vnd object with currency rates
+	if apiResp.VND != nil {
+		if usdRate, ok := apiResp.VND["usd"]; ok && usdRate > 0 {
+			newRates["USD"] = 1 / usdRate // Invert to get VND per USD
+		}
+		if eurRate, ok := apiResp.VND["eur"]; ok && eurRate > 0 {
+			newRates["EUR"] = 1 / eurRate // Invert to get VND per EUR
+		}
 	}
 
 	e.rates = newRates
@@ -107,10 +111,16 @@ func (e *ExchangeRateService) fetchRates() {
 }
 
 // GetRates returns the current exchange rates (to VND)
-// Always fetches fresh rates from API
+// Fetches fresh rates if cache is older than 6 hours
 func (e *ExchangeRateService) GetRates() map[string]float64 {
-	// Always fetch fresh rates when called
-	e.fetchRates()
+	e.mu.RLock()
+	cacheExpired := time.Since(e.lastUpdate) > e.cacheTTL
+	e.mu.RUnlock()
+
+	// Only fetch if cache expired
+	if cacheExpired {
+		e.fetchRates()
+	}
 
 	e.mu.RLock()
 	defer e.mu.RUnlock()
