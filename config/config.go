@@ -19,6 +19,7 @@ type Config struct {
 	JWT struct {
 		Secret string `yaml:"secret"`
 	} `yaml:"jwt"`
+	Env string `yaml:"env"` // Environment: dev or prod
 }
 
 func expandEnvVars(content string) string {

@@ -35,19 +35,30 @@ type ExpenseCreateRequest struct {
 }
 
 type ExpenseFilter struct {
-	UserID   uint      `form:"user_id" json:"user_id"`
-	Kind     string    `form:"kind" json:"kind"`
-	Type     string    `form:"type" json:"type"`
-	Currency string    `form:"currency" json:"currency"`
-	From     time.Time `form:"from" json:"from"`
-	To       time.Time `form:"to" json:"to"`
+	UserID          uint      `form:"user_id" json:"user_id"`
+	Kind            string    `form:"kind" json:"kind"`
+	Type            string    `form:"type" json:"type"`
+	Currencies      []string  `form:"currencies" json:"currencies"`             // Filter by multiple currencies
+	DefaultCurrency string    `form:"default_currency" json:"default_currency"` // Currency to use for conversion
+	From            time.Time `form:"from" json:"from"`
+	To              time.Time `form:"to" json:"to"`
 }
 
 type ExpenseSummary struct {
-	Expenses    []Expense               `json:"expenses"`
-	TotalByKind map[ExpenseKind]float64 `json:"total_by_kind"`
-	TotalByType map[string]float64      `json:"total_by_type"`
-	TotalAmount float64                 `json:"total_amount"`
+	Expenses     []Expense                   `json:"expenses"`
+	Currency     string                      `json:"currency"` // The currency for totals (if filtered) or base currency (VND)
+	TotalIncome  float64                     `json:"total_income"`
+	TotalExpense float64                     `json:"total_expense"`
+	Balance      float64                     `json:"balance"`
+	TotalByType  map[string]float64          `json:"total_by_type"`
+	ByCurrency   map[string]*CurrencySummary `json:"by_currency,omitempty"` // Only present when no currency filter
+}
+
+type CurrencySummary struct {
+	TotalIncome  float64            `json:"total_income"`
+	TotalExpense float64            `json:"total_expense"`
+	Balance      float64            `json:"balance"`
+	TotalByType  map[string]float64 `json:"total_by_type"`
 }
 
 type ExpenseUpdateRequest struct {

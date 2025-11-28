@@ -26,6 +26,17 @@ func NewAuthService(cfg *config.Config) *AuthService {
 // AuthMiddleware checks JWT authentication and sets user info in context
 func (a *AuthService) AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Bypass authentication in dev environment with special header
+		if a.cfg.Env == "dev" && c.GetHeader("X-Bypass-Auth") == "true" {
+			// Set a default auth context for dev mode
+			authCtx := AuthContext{
+				UserID: 1, // Default user ID for dev
+				Role:   RoleUser,
+			}
+			c.Set("auth", authCtx)
+			c.Next()
+			return
+		}
 
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {

@@ -16,5 +16,6 @@ func RegisterExpenseRoutes(r *gin.Engine, a auth.IAuthService, service *ExpenseS
 		group.PUT("/:id", handler.UpdateExpense)
 		group.GET("/", handler.ListExpenses)
 		group.GET("/summary", handler.Summary)
+		group.GET("/exchange-rates", handler.GetExchangeRates)
 	}
 }

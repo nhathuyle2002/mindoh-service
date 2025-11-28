@@ -216,3 +216,11 @@ func (h *ExpenseHandler) Summary(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, summary)
 }
+
+func (h *ExpenseHandler) GetExchangeRates(c *gin.Context) {
+	rates := h.Service.GetExchangeRates()
+	c.JSON(http.StatusOK, gin.H{
+		"base_currency": "VND",
+		"rates":         rates,
+	})
+}
