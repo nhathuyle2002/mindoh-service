@@ -148,6 +148,7 @@ func (h *ExpenseHandler) UpdateExpense(c *gin.Context) {
 // @Param type query string false "Expense type (food/salary/transport/entertainment)"
 // @Param from query string false "Start date (YYYY-MM-DD)"
 // @Param to query string false "End date (YYYY-MM-DD)"
+// @Param group_by query string false "Group by dimension (DAY, MONTH, YEAR)"
 // @Success 200 {array} Expense "List of expenses"
 // @Failure 400 {object} map[string]interface{} "Invalid query parameters"
 // @Failure 403 {object} map[string]interface{} "Forbidden"
@@ -221,24 +222,4 @@ func (h *ExpenseHandler) Summary(c *gin.Context) {
 	c.JSON(http.StatusOK, summary)
 }
 
-func (h *ExpenseHandler) GetExchangeRates(c *gin.Context) {
-	rates := h.Service.GetExchangeRates()
-	c.JSON(http.StatusOK, gin.H{
-		"base_currency": "VND",
-		"rates":         rates,
-	})
-}
-
-// GetAvailableCurrencies godoc
-// @Summary Get available currencies
-// @Description Get list of available currencies
-// @Tags expenses
-// @Produce json
-// @Success 200 {object} map[string]interface{} "List of available currencies"
-// @Security BearerAuth
-// @Router /expenses/currencies [get]
-func (h *ExpenseHandler) GetAvailableCurrencies(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"currencies": AvailableCurrencies,
-	})
-}
+// Currency-related endpoints moved to currency package.

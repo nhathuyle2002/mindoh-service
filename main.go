@@ -3,6 +3,7 @@ package main
 import (
 	"mindoh-service/config"
 	"mindoh-service/internal/auth"
+	"mindoh-service/internal/currency"
 	"mindoh-service/internal/db"
 	"mindoh-service/internal/expense"
 	"mindoh-service/internal/user"
@@ -82,6 +83,8 @@ func RegisterRoutes(r *gin.Engine, s *Services) {
 	user.RegisterUserRoutes(r, s.AuthService, s.UserService)
 	// Register expense routes
 	expense.RegisterExpenseRoutes(r, s.AuthService, s.ExpenseService)
+	// Register currency routes
+	currency.RegisterCurrencyRoutes(r, s.AuthService)
 }
 
 func main() {

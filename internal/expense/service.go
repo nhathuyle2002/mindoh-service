@@ -1,5 +1,12 @@
 package expense
 
+import (
+	"mindoh-service/internal/currency"
+	"sort"
+	"strings"
+	"time"
+)
+
 // ExpenseService handles business logic for expenses
 type ExpenseService struct {
 	Repo *ExpenseRepository
@@ -22,7 +29,8 @@ func (s *ExpenseService) ListExpenses(filter ExpenseFilter) ([]Expense, error) {
 }
 
 func (s *ExpenseService) GetExchangeRates() map[string]float64 {
-	return GetExchangeRateService().GetRates()
+	// Deprecated: exchange rate access moved to currency package endpoints.
+	return nil // This method is now obsolete
 }
 
 func (s *ExpenseService) Summary(filter ExpenseFilter) (*ExpenseSummary, error) {
@@ -31,19 +39,22 @@ func (s *ExpenseService) Summary(filter ExpenseFilter) (*ExpenseSummary, error) 
 		return &ExpenseSummary{}, err
 	}
 
-	// Set original currency (conversion target) to VND if not specified
 	originalCurrency := filter.OriginalCurrency
 	if originalCurrency == "" {
 		originalCurrency = "VND"
 	}
 
-	// If currencies filter is specified, return summary for those currencies only (no conversion)
+	var summary *ExpenseSummary
 	if len(filter.Currencies) > 0 {
-		return s.summarizeForCurrencies(expenses, filter.Currencies), nil
+		summary = s.summarizeForCurrencies(expenses, filter.Currencies)
+	} else {
+		summary = s.summarizeWithConversion(expenses, originalCurrency)
 	}
 
-	// Otherwise, return converted summary in original currency + breakdown by currency
-	return s.summarizeWithConversion(expenses, originalCurrency), nil
+	if filter.GroupBy != "" {
+		summary.Groups = s.groupExpenses(expenses, filter, summary.Currency, len(filter.Currencies) == 0)
+	}
+	return summary, nil
 }
 
 func (s *ExpenseService) summarizeForCurrencies(expenses []Expense, currencies []string) *ExpenseSummary {
@@ -82,7 +93,7 @@ func (s *ExpenseService) summarizeWithConversion(expenses []Expense, originalCur
 	byCurrency := make(map[string]*CurrencySummary)
 
 	// Get current exchange rates
-	exchangeRates := GetExchangeRateService().GetRates()
+	exchangeRates := currency.GetExchangeRateService().GetRates()
 
 	// Get exchange rate for original currency
 	targetRate := exchangeRates[originalCurrency]
@@ -131,4 +142,99 @@ func (s *ExpenseService) summarizeWithConversion(expenses []Expense, originalCur
 		TotalByType:  totalByType,
 		ByCurrency:   byCurrency,
 	}
+}
+
+// groupExpenses aggregates expenses according to filter.GroupBy (DAY, MONTH, YEAR).
+// When convertTotals is true (no explicit currencies filter) amounts are converted into targetCurrency.
+func (s *ExpenseService) groupExpenses(expenses []Expense, filter ExpenseFilter, targetCurrency string, convertTotals bool) []ExpenseGroup {
+	if len(expenses) == 0 {
+		return []ExpenseGroup{}
+	}
+	mode := strings.ToUpper(filter.GroupBy)
+	if mode != "DAY" && mode != "MONTH" && mode != "YEAR" {
+		return []ExpenseGroup{}
+	}
+	exchangeRates := currency.GetExchangeRateService().GetRates()
+	targetRate := exchangeRates[targetCurrency]
+	if targetRate == 0 {
+		targetRate = 1
+	}
+	type agg struct {
+		Income      float64
+		Expense     float64
+		TotalByType map[string]float64
+	}
+	groups := make(map[string]*agg)
+	for _, exp := range expenses {
+		var key string
+		switch mode {
+		case "DAY":
+			key = exp.Date.Format("2006-01-02")
+		case "MONTH":
+			key = exp.Date.Format("2006-01")
+		case "YEAR":
+			key = exp.Date.Format("2006")
+		}
+		if groups[key] == nil {
+			groups[key] = &agg{TotalByType: make(map[string]float64)}
+		}
+		amount := exp.Amount
+		if convertTotals {
+			rate := exchangeRates[exp.Currency]
+			if rate == 0 {
+				rate = 1
+			}
+			amount = amount * rate / targetRate
+		}
+		if exp.Kind == ExpenseKindIncome {
+			groups[key].Income += amount
+		} else {
+			groups[key].Expense += amount
+		}
+		groups[key].TotalByType[exp.Type] += amount
+	}
+	keys := make([]string, 0, len(groups))
+	for k := range groups {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		// Parse key back to time for ordering
+		var ti, tj time.Time
+		switch mode {
+		case "DAY":
+			ti, _ = time.Parse("2006-01-02", keys[i])
+			tj, _ = time.Parse("2006-01-02", keys[j])
+		case "MONTH":
+			ti, _ = time.Parse("2006-01", keys[i])
+			tj, _ = time.Parse("2006-01", keys[j])
+		case "YEAR":
+			ti, _ = time.Parse("2006", keys[i])
+			tj, _ = time.Parse("2006", keys[j])
+		}
+		return ti.Before(tj)
+	})
+	result := make([]ExpenseGroup, 0, len(keys))
+	for _, k := range keys {
+		g := groups[k]
+		label := k
+		switch mode {
+		case "DAY":
+			t, _ := time.Parse("2006-01-02", k)
+			label = t.Format("02 Jan 2006")
+		case "MONTH":
+			t, _ := time.Parse("2006-01", k)
+			label = t.Format("Jan 2006")
+		case "YEAR":
+			label = k
+		}
+		result = append(result, ExpenseGroup{
+			Key:         k,
+			Label:       label,
+			Income:      g.Income,
+			Expense:     g.Expense,
+			Balance:     g.Income - g.Expense,
+			TotalByType: g.TotalByType,
+		})
+	}
+	return result
 }

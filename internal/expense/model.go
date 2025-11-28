@@ -11,9 +11,6 @@ const (
 	ExpenseKindIncome  ExpenseKind = "income"
 )
 
-// Available currencies
-var AvailableCurrencies = []string{"VND", "USD"}
-
 type Expense struct {
 	ID          uint        `gorm:"primaryKey" json:"id"`
 	UserID      uint        `gorm:"not null" json:"user_id"`
@@ -45,6 +42,7 @@ type ExpenseFilter struct {
 	OriginalCurrency string    `form:"original_currency" json:"original_currency"` // Currency to convert totals into when no currency filter
 	From             time.Time `form:"from" json:"from"`
 	To               time.Time `form:"to" json:"to"`
+	GroupBy          string    `form:"group_by" json:"group_by"` // DAY, MONTH, YEAR (uppercase, case-insensitive)
 }
 
 type ExpenseSummary struct {
@@ -55,6 +53,7 @@ type ExpenseSummary struct {
 	Balance      float64                     `json:"balance"`
 	TotalByType  map[string]float64          `json:"total_by_type"`
 	ByCurrency   map[string]*CurrencySummary `json:"by_currency,omitempty"` // Only present when no currency filter
+	Groups       []ExpenseGroup              `json:"groups,omitempty"`      // Optional grouped summary buckets
 }
 
 type CurrencySummary struct {
@@ -62,6 +61,16 @@ type CurrencySummary struct {
 	TotalExpense float64            `json:"total_expense"`
 	Balance      float64            `json:"balance"`
 	TotalByType  map[string]float64 `json:"total_by_type"`
+}
+
+// ExpenseGroup represents aggregated totals for a grouping bucket (day/month/year)
+type ExpenseGroup struct {
+	Key         string             `json:"key"`   // Raw key (YYYY-MM-DD / YYYY-MM / YYYY)
+	Label       string             `json:"label"` // Human-friendly label
+	Income      float64            `json:"income"`
+	Expense     float64            `json:"expense"`
+	Balance     float64            `json:"balance"`
+	TotalByType map[string]float64 `json:"total_by_type"`
 }
 
 type ExpenseUpdateRequest struct {
