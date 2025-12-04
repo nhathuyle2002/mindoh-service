@@ -1,6 +1,7 @@
 package expense
 
 import (
+	"errors"
 	"mindoh-service/internal/currency"
 	"sort"
 	"strings"
@@ -17,10 +18,24 @@ func NewExpenseService(repo *ExpenseRepository) *ExpenseService {
 }
 
 func (s *ExpenseService) AddExpense(expense *Expense) error {
+	// Validate amount sign based on kind
+	if expense.Kind == ExpenseKindExpense && expense.Amount > 0 {
+		return errors.New("expense amount must be negative")
+	}
+	if expense.Kind == ExpenseKindIncome && expense.Amount < 0 {
+		return errors.New("income amount must be positive")
+	}
 	return s.Repo.Create(expense)
 }
 
 func (s *ExpenseService) UpdateExpense(expense *Expense) error {
+	// Validate amount sign based on kind
+	if expense.Kind == ExpenseKindExpense && expense.Amount > 0 {
+		return errors.New("expense amount must be negative")
+	}
+	if expense.Kind == ExpenseKindIncome && expense.Amount < 0 {
+		return errors.New("income amount must be positive")
+	}
 	return s.Repo.Update(expense)
 }
 
@@ -75,13 +90,20 @@ func (s *ExpenseService) summarizeForCurrencies(expenses []Expense, currencies [
 				TotalByType: make(map[string]float64),
 			}
 		}
+		// Accumulate by type for each currency
+		byCurrency[expense.Currency].TotalByType[expense.Type] += expense.Amount
+
+		// Separate income and expense totals by kind
 		if expense.Kind == ExpenseKindIncome {
 			byCurrency[expense.Currency].TotalIncome += expense.Amount
 		} else {
 			byCurrency[expense.Currency].TotalExpense += expense.Amount
 		}
-		byCurrency[expense.Currency].Balance = byCurrency[expense.Currency].TotalIncome - byCurrency[expense.Currency].TotalExpense
-		byCurrency[expense.Currency].TotalByType[expense.Type] += expense.Amount
+	}
+
+	// Calculate balance for each currency
+	for _, summary := range byCurrency {
+		summary.Balance = summary.TotalIncome + summary.TotalExpense
 	}
 
 	return &ExpenseSummary{
@@ -118,13 +140,15 @@ func (s *ExpenseService) summarizeWithConversion(expenses []Expense, originalCur
 		// Convert to original currency (VND rate / target rate)
 		convertedAmount := expense.Amount * exchangeRate / targetRate
 
-		// Add to converted totals (in VND)
+		// Accumulate by type
+		totalByType[expense.Type] += convertedAmount
+
+		// Separate income and expense totals by kind
 		if expense.Kind == ExpenseKindIncome {
 			totalIncome += convertedAmount
 		} else {
 			totalExpense += convertedAmount
 		}
-		totalByType[expense.Type] += convertedAmount
 
 		// Track by original currency
 		if byCurrency[expense.Currency] == nil {
@@ -132,13 +156,18 @@ func (s *ExpenseService) summarizeWithConversion(expenses []Expense, originalCur
 				TotalByType: make(map[string]float64),
 			}
 		}
+		byCurrency[expense.Currency].TotalByType[expense.Type] += expense.Amount
+
 		if expense.Kind == ExpenseKindIncome {
 			byCurrency[expense.Currency].TotalIncome += expense.Amount
 		} else {
 			byCurrency[expense.Currency].TotalExpense += expense.Amount
 		}
-		byCurrency[expense.Currency].Balance = byCurrency[expense.Currency].TotalIncome - byCurrency[expense.Currency].TotalExpense
-		byCurrency[expense.Currency].TotalByType[expense.Type] += expense.Amount
+	}
+
+	// Calculate balance for each currency and main summary
+	for _, summary := range byCurrency {
+		summary.Balance = summary.TotalIncome + summary.TotalExpense
 	}
 
 	return &ExpenseSummary{
@@ -146,7 +175,7 @@ func (s *ExpenseService) summarizeWithConversion(expenses []Expense, originalCur
 		Currency:     originalCurrency, // Converted to selected original currency
 		TotalIncome:  totalIncome,
 		TotalExpense: totalExpense,
-		Balance:      totalIncome - totalExpense,
+		Balance:      totalIncome + totalExpense,
 		TotalByType:  totalByType,
 		ByCurrency:   byCurrency,
 	}
@@ -199,12 +228,15 @@ func (s *ExpenseService) groupExpenses(expenses []Expense, filter ExpenseFilter,
 			}
 			amount = amount * rate / targetRate
 		}
+		// Accumulate by type
+		groups[key].TotalByType[exp.Type] += amount
+
+		// Separate income and expense totals by kind
 		if exp.Kind == ExpenseKindIncome {
 			groups[key].Income += amount
 		} else {
 			groups[key].Expense += amount
 		}
-		groups[key].TotalByType[exp.Type] += amount
 	}
 	keys := make([]string, 0, len(groups))
 	for k := range groups {
@@ -245,7 +277,7 @@ func (s *ExpenseService) groupExpenses(expenses []Expense, filter ExpenseFilter,
 			Label:       label,
 			Income:      g.Income,
 			Expense:     g.Expense,
-			Balance:     g.Income - g.Expense,
+			Balance:     g.Income + g.Expense,
 			TotalByType: g.TotalByType,
 		})
 	}

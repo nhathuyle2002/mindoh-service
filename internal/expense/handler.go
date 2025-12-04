@@ -68,7 +68,7 @@ func (h *ExpenseHandler) AddExpense(c *gin.Context) {
 		Date:        req.Date,
 	}
 	if err := h.Service.AddExpense(&expense); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add expense"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusCreated, expense)
@@ -116,11 +116,11 @@ func (h *ExpenseHandler) UpdateExpense(c *gin.Context) {
 	if req.Amount != nil {
 		expense.Amount = *req.Amount
 	}
-	if req.Currency != nil {
-		expense.Currency = *req.Currency
-	}
 	if req.Kind != nil {
 		expense.Kind = *req.Kind
+	}
+	if req.Currency != nil {
+		expense.Currency = *req.Currency
 	}
 	if req.Type != nil {
 		expense.Type = *req.Type
@@ -138,7 +138,7 @@ func (h *ExpenseHandler) UpdateExpense(c *gin.Context) {
 	}
 
 	if err := h.Service.UpdateExpense(expense); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update expense"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, expense)
