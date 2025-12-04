@@ -21,7 +21,7 @@ type Expense struct {
 	Kind        ExpenseKind    `gorm:"type:varchar(32);not null" json:"kind"` // expense or income
 	Type        string         `gorm:"type:varchar(32);not null" json:"type"` // e.g., food, salary, etc.
 	Description string         `gorm:"type:text" json:"description"`
-	Date        time.Time      `gorm:"not null" json:"date"`
+	Date        string         `gorm:"type:varchar(10);not null" json:"date"` // Format: YYYY-MM-DD
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
@@ -34,18 +34,18 @@ type ExpenseCreateRequest struct {
 	Kind        ExpenseKind `json:"kind"`
 	Type        string      `json:"type"`
 	Description string      `json:"description"`
-	Date        time.Time   `json:"date"` // Date is optional, if not provided, current time will be used
+	Date        string      `json:"date"` // Format: YYYY-MM-DD
 }
 
 type ExpenseFilter struct {
-	UserID           uint      `form:"user_id" json:"user_id"`
-	Kind             string    `form:"kind" json:"kind"`
-	Type             string    `form:"type" json:"type"`
-	Currencies       []string  `form:"currencies" json:"currencies"`               // Filter by multiple currencies
-	OriginalCurrency string    `form:"original_currency" json:"original_currency"` // Currency to convert totals into when no currency filter
-	From             time.Time `form:"from" json:"from"`
-	To               time.Time `form:"to" json:"to"`
-	GroupBy          string    `form:"group_by" json:"group_by"` // DAY, MONTH, YEAR (uppercase, case-insensitive)
+	UserID           uint     `form:"user_id" json:"user_id"`
+	Kind             string   `form:"kind" json:"kind"`
+	Type             string   `form:"type" json:"type"`
+	Currencies       []string `form:"currencies" json:"currencies"`               // Filter by multiple currencies
+	OriginalCurrency string   `form:"original_currency" json:"original_currency"` // Currency to convert totals into when no currency filter
+	From             string   `form:"from" json:"from"`                           // Format: YYYY-MM-DD
+	To               string   `form:"to" json:"to"`                               // Format: YYYY-MM-DD
+	GroupBy          string   `form:"group_by" json:"group_by"`                   // DAY, MONTH, YEAR (uppercase, case-insensitive)
 }
 
 type ExpenseSummary struct {
@@ -82,5 +82,5 @@ type ExpenseUpdateRequest struct {
 	Kind        *ExpenseKind `json:"kind,omitempty"`
 	Type        *string      `json:"type,omitempty"`
 	Description *string      `json:"description,omitempty"`
-	Date        *time.Time   `json:"date,omitempty"`
+	Date        *string      `json:"date,omitempty"` // Format: YYYY-MM-DD
 }

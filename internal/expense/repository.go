@@ -49,10 +49,10 @@ func (r *ExpenseRepository) ListByFilter(filter ExpenseFilter) ([]Expense, error
 	if len(filter.Currencies) > 0 {
 		db = db.Where("currency IN ?", filter.Currencies)
 	}
-	if !filter.From.IsZero() {
+	if filter.From != "" {
 		db = db.Where("date >= ?", filter.From)
 	}
-	if !filter.To.IsZero() {
+	if filter.To != "" {
 		db = db.Where("date <= ?", filter.To)
 	}
 	err := db.Order("date desc").Find(&expenses).Error

@@ -49,12 +49,15 @@ func (h *ExpenseHandler) AddExpense(c *gin.Context) {
 	if role == auth.RoleUser || req.UserID == 0 {
 		req.UserID = userID
 	}
-	// Set date to now if not provided
-	if req.Date.IsZero() {
-		req.Date = time.Now()
+	// Set date to today if not provided, format: YYYY-MM-DD
+	if req.Date == "" {
+		req.Date = time.Now().Format("2006-01-02")
 	}
-	// Normalize date to start of day (00:00:00)
-	req.Date = time.Date(req.Date.Year(), req.Date.Month(), req.Date.Day(), 0, 0, 0, 0, req.Date.Location())
+	// Validate date format
+	if _, err := time.Parse("2006-01-02", req.Date); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format, expected YYYY-MM-DD"})
+		return
+	}
 	expense := Expense{
 		UserID:      req.UserID,
 		Amount:      req.Amount,
@@ -126,9 +129,12 @@ func (h *ExpenseHandler) UpdateExpense(c *gin.Context) {
 		expense.Description = *req.Description
 	}
 	if req.Date != nil {
-		// Normalize date to start of day (00:00:00)
-		normalizedDate := time.Date(req.Date.Year(), req.Date.Month(), req.Date.Day(), 0, 0, 0, 0, req.Date.Location())
-		expense.Date = normalizedDate
+		// Validate date format
+		if _, err := time.Parse("2006-01-02", *req.Date); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format, expected YYYY-MM-DD"})
+			return
+		}
+		expense.Date = *req.Date
 	}
 
 	if err := h.Service.UpdateExpense(expense); err != nil {

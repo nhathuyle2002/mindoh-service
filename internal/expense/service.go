@@ -175,13 +175,18 @@ func (s *ExpenseService) groupExpenses(expenses []Expense, filter ExpenseFilter,
 	groups := make(map[string]*agg)
 	for _, exp := range expenses {
 		var key string
+		// exp.Date is already in YYYY-MM-DD format
 		switch mode {
 		case "DAY":
-			key = exp.Date.Format("2006-01-02")
+			key = exp.Date // Already YYYY-MM-DD
 		case "MONTH":
-			key = exp.Date.Format("2006-01")
+			if len(exp.Date) >= 7 {
+				key = exp.Date[:7] // Extract YYYY-MM
+			}
 		case "YEAR":
-			key = exp.Date.Format("2006")
+			if len(exp.Date) >= 4 {
+				key = exp.Date[:4] // Extract YYYY
+			}
 		}
 		if groups[key] == nil {
 			groups[key] = &agg{TotalByType: make(map[string]float64)}
