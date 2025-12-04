@@ -2,6 +2,8 @@ package expense
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type ExpenseKind string
@@ -12,16 +14,17 @@ const (
 )
 
 type Expense struct {
-	ID          uint        `gorm:"primaryKey" json:"id"`
-	UserID      uint        `gorm:"not null" json:"user_id"`
-	Amount      float64     `gorm:"not null" json:"amount"`
-	Currency    string      `gorm:"type:varchar(3);not null" json:"currency"`
-	Kind        ExpenseKind `gorm:"type:varchar(32);not null" json:"kind"` // expense or income
-	Type        string      `gorm:"type:varchar(32);not null" json:"type"` // e.g., food, salary, etc.
-	Description string      `gorm:"type:text" json:"description"`
-	Date        time.Time   `gorm:"not null" json:"date"`
-	CreatedAt   time.Time   `json:"created_at"`
-	UpdatedAt   time.Time   `json:"updated_at"`
+	ID          uint           `gorm:"primaryKey" json:"id"`
+	UserID      uint           `gorm:"not null" json:"user_id"`
+	Amount      float64        `gorm:"not null" json:"amount"`
+	Currency    string         `gorm:"type:varchar(3);not null" json:"currency"`
+	Kind        ExpenseKind    `gorm:"type:varchar(32);not null" json:"kind"` // expense or income
+	Type        string         `gorm:"type:varchar(32);not null" json:"type"` // e.g., food, salary, etc.
+	Description string         `gorm:"type:text" json:"description"`
+	Date        time.Time      `gorm:"not null" json:"date"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 type ExpenseCreateRequest struct {

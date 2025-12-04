@@ -24,6 +24,14 @@ func (s *ExpenseService) UpdateExpense(expense *Expense) error {
 	return s.Repo.Update(expense)
 }
 
+func (s *ExpenseService) GetExpenseByID(id uint) (*Expense, error) {
+	return s.Repo.GetByID(id)
+}
+
+func (s *ExpenseService) DeleteExpense(id uint) error {
+	return s.Repo.Delete(id)
+}
+
 func (s *ExpenseService) ListExpenses(filter ExpenseFilter) ([]Expense, error) {
 	return s.Repo.ListByFilter(filter)
 }

@@ -30,6 +30,10 @@ func (r *ExpenseRepository) Update(expense *Expense) error {
 	return r.DB.Save(expense).Error
 }
 
+func (r *ExpenseRepository) Delete(id uint) error {
+	return r.DB.Delete(&Expense{}, id).Error
+}
+
 func (r *ExpenseRepository) ListByFilter(filter ExpenseFilter) ([]Expense, error) {
 	var expenses []Expense
 	db := r.DB.Model(&Expense{})

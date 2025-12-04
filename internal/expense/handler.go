@@ -2,6 +2,7 @@ package expense
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"mindoh-service/common/utils"
@@ -220,6 +221,52 @@ func (h *ExpenseHandler) Summary(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, summary)
+}
+
+// DeleteExpense godoc
+// @Summary Delete expense
+// @Description Delete an expense by ID (user can only delete their own expenses)
+// @Tags expenses
+// @Accept json
+// @Produce json
+// @Param id path int true "Expense ID"
+// @Success 200 {object} map[string]interface{} "Expense deleted successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid expense ID"
+// @Failure 403 {object} map[string]interface{} "Forbidden"
+// @Failure 404 {object} map[string]interface{} "Expense not found"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security BearerAuth
+// @Router /expenses/{id} [delete]
+func (h *ExpenseHandler) DeleteExpense(c *gin.Context) {
+	authCtx := auth.GetAuthContext(c)
+	userID := authCtx.UserID
+
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid expense ID"})
+		return
+	}
+
+	// Check if expense exists and belongs to user
+	expense, err := h.Service.GetExpenseByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Expense not found"})
+		return
+	}
+
+	role := authCtx.Role
+	if role == auth.RoleUser && expense.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You can only delete your own expenses"})
+		return
+	}
+
+	// Delete expense
+	if err := h.Service.DeleteExpense(uint(id)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete expense"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Expense deleted successfully"})
 }
 
 // Currency-related endpoints moved to currency package.
