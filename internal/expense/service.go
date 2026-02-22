@@ -2,6 +2,7 @@ package expense
 
 import (
 	"errors"
+	"fmt"
 	"mindoh-service/internal/currency"
 	dbmodel "mindoh-service/internal/db"
 	"mindoh-service/internal/dto"
@@ -133,14 +134,14 @@ func (s *ExpenseService) computeSummary(expenses []dbmodel.Expense, targetCurren
 	}
 }
 
-// groupExpenses aggregates expenses into buckets according to groupBy (DAY, MONTH, YEAR),
+// groupExpenses aggregates expenses into buckets according to groupBy (DAY, WEEK, MONTH, YEAR),
 // converting all amounts to targetCurrency.
 func (s *ExpenseService) groupExpenses(expenses []dbmodel.Expense, groupBy string, targetCurrency string) []dto.ExpenseGroup {
 	if len(expenses) == 0 {
 		return []dto.ExpenseGroup{}
 	}
 	mode := strings.ToUpper(groupBy)
-	if mode != "DAY" && mode != "MONTH" && mode != "YEAR" {
+	if mode != "DAY" && mode != "WEEK" && mode != "MONTH" && mode != "YEAR" {
 		return []dto.ExpenseGroup{}
 	}
 
@@ -154,14 +155,29 @@ func (s *ExpenseService) groupExpenses(expenses []dbmodel.Expense, groupBy strin
 		Income      float64
 		Expense     float64
 		TotalByType map[string]float64
+		WeekStart   time.Time // used for WEEK sorting/label
 	}
 	groups := make(map[string]*agg)
 
 	for _, exp := range expenses {
 		var key string
+		var weekStart time.Time
+		t, err := time.Parse("2006-01-02", exp.Date)
+		if err != nil {
+			continue
+		}
 		switch mode {
 		case "DAY":
 			key = exp.Date
+		case "WEEK":
+			// ISO week: Monday-based
+			weekday := int(t.Weekday())
+			if weekday == 0 {
+				weekday = 7
+			}
+			weekStart = t.AddDate(0, 0, -(weekday - 1))
+			year, week := t.ISOWeek()
+			key = fmt.Sprintf("%d-W%02d", year, week)
 		case "MONTH":
 			if len(exp.Date) >= 7 {
 				key = exp.Date[:7]
@@ -172,7 +188,7 @@ func (s *ExpenseService) groupExpenses(expenses []dbmodel.Expense, groupBy strin
 			}
 		}
 		if groups[key] == nil {
-			groups[key] = &agg{TotalByType: make(map[string]float64)}
+			groups[key] = &agg{TotalByType: make(map[string]float64), WeekStart: weekStart}
 		}
 		rate := exchangeRates[exp.Currency]
 		if rate == 0 {
@@ -197,6 +213,9 @@ func (s *ExpenseService) groupExpenses(expenses []dbmodel.Expense, groupBy strin
 		case "DAY":
 			ti, _ = time.Parse("2006-01-02", keys[i])
 			tj, _ = time.Parse("2006-01-02", keys[j])
+		case "WEEK":
+			ti = groups[keys[i]].WeekStart
+			tj = groups[keys[j]].WeekStart
 		case "MONTH":
 			ti, _ = time.Parse("2006-01", keys[i])
 			tj, _ = time.Parse("2006-01", keys[j])
@@ -214,7 +233,9 @@ func (s *ExpenseService) groupExpenses(expenses []dbmodel.Expense, groupBy strin
 		switch mode {
 		case "DAY":
 			t, _ := time.Parse("2006-01-02", k)
-			label = t.Format("02 Jan 2006")
+			label = t.Format("02 Jan")
+		case "WEEK":
+			label = g.WeekStart.Format("02 Jan")
 		case "MONTH":
 			t, _ := time.Parse("2006-01", k)
 			label = t.Format("Jan 2006")
