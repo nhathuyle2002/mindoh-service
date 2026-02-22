@@ -1,0 +1,40 @@
+name: Deploy to Render
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test ./...
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render Deploy
+        run: |
+          curl -s -o /dev/null -w "%{http_code}" \
+            --request GET \
+            "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" | \
+          grep -q "^2" && echo "Deploy triggered successfully" || (echo "Deploy trigger failed" && exit 1)
