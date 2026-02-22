@@ -11,6 +11,18 @@ type UserRegisterRequest struct {
 	Address   string `json:"address,omitempty"`
 }
 
+// AdminCreateUserRequest is the request body for admin creating a user with a specific role.
+type AdminCreateUserRequest struct {
+	Username  string `json:"username"  binding:"required"`
+	Email     string `json:"email"     binding:"required,email"`
+	Password  string `json:"password"  binding:"required,min=6"`
+	Role      string `json:"role"      binding:"omitempty,oneof=admin user"` // defaults to "user" if omitted
+	Name      string `json:"name,omitempty"`
+	Birthdate string `json:"birthdate,omitempty"`
+	Phone     string `json:"phone,omitempty"`
+	Address   string `json:"address,omitempty"`
+}
+
 // UserLoginRequest is the request body for user login.
 type UserLoginRequest struct {
 	Username string `json:"username"`

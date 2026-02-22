@@ -14,11 +14,18 @@ func RegisterUserRoutes(r *gin.Engine, authService auth.IAuthService, userServic
 	r.POST("/api/login", handler.Login)
 
 	// Protected routes
-	auth := r.Group("/api")
-	auth.Use(authService.AuthMiddleware())
+	protected := r.Group("/api")
+	protected.Use(authService.AuthMiddleware())
 	{
-		auth.GET("/users/:id", handler.GetUser)
-		auth.PUT("/users/:id", handler.UpdateUser)
-		auth.DELETE("/users/:id", handler.DeleteUser)
+		protected.GET("/users/:id", handler.GetUser)
+		protected.PUT("/users/:id", handler.UpdateUser)
+		protected.DELETE("/users/:id", handler.DeleteUser)
+	}
+
+	// Admin-only routes
+	admin := r.Group("/api/admin")
+	admin.Use(authService.AuthMiddleware(), authService.RoleGuard(auth.RoleAdmin))
+	{
+		admin.POST("/users", handler.AdminCreateUser)
 	}
 }

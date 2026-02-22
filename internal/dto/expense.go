@@ -1,5 +1,24 @@
 package dto
 
+// ExpenseResponse is the public-facing representation of an expense record.
+type ExpenseResponse struct {
+	ID          uint    `json:"id"`
+	UserID      uint    `json:"user_id"`
+	Amount      float64 `json:"amount"`
+	Currency    string  `json:"currency"`
+	Kind        string  `json:"kind"`
+	Type        string  `json:"type"`
+	Resource    string  `json:"resource"`
+	Description string  `json:"description"`
+	Date        string  `json:"date"`
+}
+
+// ExpenseListResponse wraps the list response with count metadata.
+type ExpenseListResponse struct {
+	Count int               `json:"count"`
+	Data  []ExpenseResponse `json:"data"`
+}
+
 // ExpenseCreateRequest is the request body for creating an expense.
 type ExpenseCreateRequest struct {
 	UserID      uint    `json:"user_id"`

@@ -173,3 +173,42 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "User deleted"})
 }
+
+// AdminCreateUser godoc
+// @Summary Create user (admin)
+// @Description Admin creates a user with a specified role
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Param user body dto.AdminCreateUserRequest true "User details"
+// @Success 201 {object} dto.UserResponse "User created successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 403 {object} map[string]interface{} "Forbidden"
+// @Security BearerAuth
+// @Router /admin/users [post]
+func (h *UserHandler) AdminCreateUser(c *gin.Context) {
+	var req dto.AdminCreateUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	role := auth.Role(req.Role)
+	if role == "" {
+		role = auth.RoleUser
+	}
+	user := &dbmodel.User{
+		Username:  req.Username,
+		Email:     req.Email,
+		Name:      req.Name,
+		Birthdate: req.Birthdate,
+		Phone:     req.Phone,
+		Address:   req.Address,
+		Role:      role,
+	}
+	user.PasswordHash, _ = HashPassword(req.Password)
+	if err := h.userService.CreateUser(user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User already exists or invalid data"})
+		return
+	}
+	c.JSON(http.StatusCreated, toUserResponse(user))
+}

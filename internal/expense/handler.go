@@ -75,7 +75,7 @@ func (h *ExpenseHandler) AddExpense(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, expense)
+	c.JSON(http.StatusCreated, toExpenseResponse(&expense))
 }
 
 // UpdateExpense godoc
@@ -148,7 +148,7 @@ func (h *ExpenseHandler) UpdateExpense(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, expense)
+	c.JSON(http.StatusOK, toExpenseResponse(expense))
 }
 
 // ListExpenses godoc
@@ -192,9 +192,9 @@ func (h *ExpenseHandler) ListExpenses(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch expenses"})
 		return
 	}
-	c.JSON(http.StatusOK, ExpenseListResponse{
+	c.JSON(http.StatusOK, dto.ExpenseListResponse{
 		Count: len(expenses),
-		Data:  expenses,
+		Data:  toExpenseResponseList(expenses),
 	})
 }
 
