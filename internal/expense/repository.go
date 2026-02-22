@@ -3,6 +3,9 @@ package expense
 import (
 	"strings"
 
+	dbmodel "mindoh-service/internal/db"
+	"mindoh-service/internal/dto"
+
 	"gorm.io/gorm"
 )
 
@@ -15,8 +18,8 @@ func NewExpenseRepository(db *gorm.DB) *ExpenseRepository {
 	return &ExpenseRepository{DB: db}
 }
 
-func (r *ExpenseRepository) GetByID(id uint) (*Expense, error) {
-	var expense Expense
+func (r *ExpenseRepository) GetByID(id uint) (*dbmodel.Expense, error) {
+	var expense dbmodel.Expense
 	err := r.DB.First(&expense, id).Error
 	if err != nil {
 		return nil, err
@@ -24,48 +27,48 @@ func (r *ExpenseRepository) GetByID(id uint) (*Expense, error) {
 	return &expense, nil
 }
 
-func (r *ExpenseRepository) Create(expense *Expense) error {
+func (r *ExpenseRepository) Create(expense *dbmodel.Expense) error {
 	return r.DB.Create(expense).Error
 }
 
-func (r *ExpenseRepository) Update(expense *Expense) error {
+func (r *ExpenseRepository) Update(expense *dbmodel.Expense) error {
 	return r.DB.Save(expense).Error
 }
 
 func (r *ExpenseRepository) Delete(id uint) error {
-	return r.DB.Delete(&Expense{}, id).Error
+	return r.DB.Delete(&dbmodel.Expense{}, id).Error
 }
 
 func (r *ExpenseRepository) GetUniqueTypes(userID uint) ([]string, error) {
 	var types []string
-	db := r.DB.Model(&Expense{}).Distinct("type").Where("type != ''").Order("type asc")
+	query := r.DB.Model(&dbmodel.Expense{}).Distinct("type").Where("type != ''").Order("type asc")
 	if userID != 0 {
-		db = db.Where("user_id = ?", userID)
+		query = query.Where("user_id = ?", userID)
 	}
-	err := db.Pluck("type", &types).Error
+	err := query.Pluck("type", &types).Error
 	return types, err
 }
 
-func (r *ExpenseRepository) ListByFilter(filter ExpenseFilter) ([]Expense, error) {
-	var expenses []Expense
-	db := r.DB.Model(&Expense{})
+func (r *ExpenseRepository) ListByFilter(filter dto.ExpenseFilter) ([]dbmodel.Expense, error) {
+	var expenses []dbmodel.Expense
+	query := r.DB.Model(&dbmodel.Expense{})
 	if filter.UserID != 0 {
-		db = db.Where("user_id = ?", filter.UserID)
+		query = query.Where("user_id = ?", filter.UserID)
 	}
 	if filter.Kind != "" {
-		db = db.Where("kind = ?", filter.Kind)
+		query = query.Where("kind = ?", filter.Kind)
 	}
 	if filter.Type != "" {
-		db = db.Where("type = ?", strings.ToLower(strings.TrimSpace(filter.Type)))
+		query = query.Where("type = ?", strings.ToLower(strings.TrimSpace(filter.Type)))
 	}
 	if len(filter.Currencies) > 0 {
-		db = db.Where("currency IN ?", filter.Currencies)
+		query = query.Where("currency IN ?", filter.Currencies)
 	}
 	if filter.From != "" {
-		db = db.Where("date >= ?", filter.From)
+		query = query.Where("date >= ?", filter.From)
 	}
 	if filter.To != "" {
-		db = db.Where("date <= ?", filter.To)
+		query = query.Where("date <= ?", filter.To)
 	}
 
 	// Build ORDER BY clause
@@ -85,24 +88,24 @@ func (r *ExpenseRepository) ListByFilter(filter ExpenseFilter) ([]Expense, error
 	if strings.ToLower(filter.OrderDir) == "asc" {
 		orderDir = "asc"
 	}
-	db = db.Order(orderCol + " " + orderDir)
+	query = query.Order(orderCol + " " + orderDir)
 
-	err := db.Find(&expenses).Error
+	err := query.Find(&expenses).Error
 	return expenses, err
 }
 
-func (r *ExpenseRepository) ListByDateRange(userID uint, from, to string) ([]Expense, error) {
-	var expenses []Expense
-	db := r.DB.Model(&Expense{})
+func (r *ExpenseRepository) ListByDateRange(userID uint, from, to string) ([]dbmodel.Expense, error) {
+	var expenses []dbmodel.Expense
+	query := r.DB.Model(&dbmodel.Expense{})
 	if userID != 0 {
-		db = db.Where("user_id = ?", userID)
+		query = query.Where("user_id = ?", userID)
 	}
 	if from != "" {
-		db = db.Where("date >= ?", from)
+		query = query.Where("date >= ?", from)
 	}
 	if to != "" {
-		db = db.Where("date <= ?", to)
+		query = query.Where("date <= ?", to)
 	}
-	err := db.Order("date desc").Find(&expenses).Error
+	err := query.Order("date desc").Find(&expenses).Error
 	return expenses, err
 }

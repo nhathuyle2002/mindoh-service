@@ -8,6 +8,8 @@ import (
 
 	"mindoh-service/common/utils"
 	"mindoh-service/internal/auth"
+	dbmodel "mindoh-service/internal/db"
+	"mindoh-service/internal/dto"
 
 	"github.com/gin-gonic/gin"
 )
@@ -27,7 +29,7 @@ func NewExpenseHandler(service *ExpenseService) *ExpenseHandler {
 // @Tags expenses
 // @Accept json
 // @Produce json
-// @Param expense body ExpenseCreateRequest true "Expense details"
+// @Param expense body dto.ExpenseCreateRequest true "Expense details"
 // @Success 201 {object} Expense "Expense created successfully"
 // @Failure 400 {object} map[string]interface{} "Invalid request"
 // @Failure 403 {object} map[string]interface{} "Forbidden"
@@ -35,7 +37,7 @@ func NewExpenseHandler(service *ExpenseService) *ExpenseHandler {
 // @Security BearerAuth
 // @Router /expenses [post]
 func (h *ExpenseHandler) AddExpense(c *gin.Context) {
-	var req ExpenseCreateRequest
+	var req dto.ExpenseCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
@@ -59,13 +61,13 @@ func (h *ExpenseHandler) AddExpense(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format, expected YYYY-MM-DD"})
 		return
 	}
-	expense := Expense{
+	expense := dbmodel.Expense{
 		UserID:      req.UserID,
 		Amount:      req.Amount,
 		Currency:    req.Currency,
-		Kind:        req.Kind,
+		Kind:        dbmodel.ExpenseKind(req.Kind),
 		Type:        strings.ToLower(strings.TrimSpace(req.Type)),
-		Resource:    req.Resource,
+		Resource:    dbmodel.ExpenseResource(req.Resource),
 		Description: req.Description,
 		Date:        req.Date,
 	}
@@ -83,7 +85,7 @@ func (h *ExpenseHandler) AddExpense(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path int true "Expense ID"
-// @Param expense body ExpenseUpdateRequest true "Expense update details"
+// @Param expense body dto.ExpenseUpdateRequest true "Expense update details"
 // @Success 200 {object} Expense "Expense updated successfully"
 // @Failure 400 {object} map[string]interface{} "Invalid request"
 // @Failure 403 {object} map[string]interface{} "Forbidden"
@@ -92,7 +94,7 @@ func (h *ExpenseHandler) AddExpense(c *gin.Context) {
 // @Security BearerAuth
 // @Router /expenses/{id} [put]
 func (h *ExpenseHandler) UpdateExpense(c *gin.Context) {
-	var req ExpenseUpdateRequest
+	var req dto.ExpenseUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
@@ -119,7 +121,7 @@ func (h *ExpenseHandler) UpdateExpense(c *gin.Context) {
 		expense.Amount = *req.Amount
 	}
 	if req.Kind != nil {
-		expense.Kind = *req.Kind
+		expense.Kind = dbmodel.ExpenseKind(*req.Kind)
 	}
 	if req.Currency != nil {
 		expense.Currency = *req.Currency
@@ -128,7 +130,7 @@ func (h *ExpenseHandler) UpdateExpense(c *gin.Context) {
 		expense.Type = strings.ToLower(strings.TrimSpace(*req.Type))
 	}
 	if req.Resource != nil {
-		expense.Resource = *req.Resource
+		expense.Resource = dbmodel.ExpenseResource(*req.Resource)
 	}
 	if req.Description != nil {
 		expense.Description = *req.Description
@@ -172,7 +174,7 @@ func (h *ExpenseHandler) ListExpenses(c *gin.Context) {
 	authCtx := auth.GetAuthContext(c)
 	userID := authCtx.UserID
 	role := authCtx.Role
-	var filter ExpenseFilter
+	var filter dto.ExpenseFilter
 	if err := c.ShouldBindQuery(&filter); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameters"})
 		return
@@ -207,7 +209,7 @@ func (h *ExpenseHandler) ListExpenses(c *gin.Context) {
 // @Param from query string false "Start date (YYYY-MM-DD)"
 // @Param to query string false "End date (YYYY-MM-DD)"
 // @Param group_by query string false "Bucket size: DAY, MONTH or YEAR"
-// @Success 200 {object} ExpenseSummary "Expense summary"
+// @Success 200 {object} dto.ExpenseSummary "Expense summary"
 // @Failure 400 {object} map[string]interface{} "Invalid query parameters"
 // @Failure 403 {object} map[string]interface{} "Forbidden"
 // @Failure 500 {object} map[string]interface{} "Internal server error"
@@ -217,7 +219,7 @@ func (h *ExpenseHandler) Summary(c *gin.Context) {
 	authCtx := auth.GetAuthContext(c)
 	userID := authCtx.UserID
 	role := authCtx.Role
-	var filter SummaryFilter
+	var filter dto.SummaryFilter
 	if err := c.ShouldBindQuery(&filter); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameters"})
 		return

@@ -3,6 +3,8 @@ package user
 import (
 	"mindoh-service/common/utils"
 	"mindoh-service/internal/auth"
+	dbmodel "mindoh-service/internal/db"
+	"mindoh-service/internal/dto"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -26,17 +28,17 @@ func NewUserHandler(authService auth.IAuthService, userService *UserService) *Us
 // @Tags auth
 // @Accept json
 // @Produce json
-// @Param user body UserRegisterRequest true "User registration details"
-// @Success 201 {object} map[string]interface{} "User created successfully"
+// @Param user body dto.UserRegisterRequest true "User registration details"
+// @Success 201 {object} dto.UserResponse "User created successfully"
 // @Failure 400 {object} map[string]interface{} "Invalid request"
 // @Router /register [post]
 func (h *UserHandler) Register(c *gin.Context) {
-	var req UserRegisterRequest
+	var req dto.UserRegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
-	user := &User{
+	user := &dbmodel.User{
 		Username:  req.Username,
 		Email:     req.Email,
 		Name:      req.Name,
@@ -50,7 +52,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User already exists or invalid data"})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"user": user})
+	c.JSON(http.StatusCreated, toUserResponse(user))
 }
 
 // Login godoc
@@ -59,13 +61,13 @@ func (h *UserHandler) Register(c *gin.Context) {
 // @Tags auth
 // @Accept json
 // @Produce json
-// @Param credentials body UserLoginRequest true "Login credentials"
-// @Success 200 {object} map[string]interface{} "Login successful"
+// @Param credentials body dto.UserLoginRequest true "Login credentials"
+// @Success 200 {object} dto.LoginResponse "Login successful"
 // @Failure 400 {object} map[string]interface{} "Invalid request"
 // @Failure 401 {object} map[string]interface{} "Invalid credentials"
 // @Router /login [post]
 func (h *UserHandler) Login(c *gin.Context) {
-	var req UserLoginRequest
+	var req dto.UserLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
@@ -80,7 +82,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"token": token, "user": user})
+	c.JSON(http.StatusOK, dto.LoginResponse{Token: token, User: toUserResponse(user)})
 }
 
 // GetUser godoc
@@ -90,7 +92,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path string true "User ID"
-// @Success 200 {object} map[string]interface{} "User found"
+// @Success 200 {object} dto.UserResponse "User found"
 // @Failure 404 {object} map[string]interface{} "User not found"
 // @Security BearerAuth
 // @Router /users/{id} [get]
@@ -101,7 +103,7 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"user": user})
+	c.JSON(http.StatusOK, toUserResponse(user))
 }
 
 // UpdateUser godoc
@@ -111,15 +113,15 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path string true "User ID"
-// @Param user body UserUpdateRequest true "User update details"
-// @Success 200 {object} map[string]interface{} "User updated successfully"
+// @Param user body dto.UserUpdateRequest true "User update details"
+// @Success 200 {object} dto.UserResponse "User updated successfully"
 // @Failure 400 {object} map[string]interface{} "Invalid request"
 // @Failure 404 {object} map[string]interface{} "User not found"
 // @Security BearerAuth
 // @Router /users/{id} [put]
 func (h *UserHandler) UpdateUser(c *gin.Context) {
 	id := c.Param("id")
-	var req UserUpdateRequest
+	var req dto.UserUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
@@ -149,7 +151,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"user": user})
+	c.JSON(http.StatusOK, toUserResponse(user))
 }
 
 // DeleteUser godoc

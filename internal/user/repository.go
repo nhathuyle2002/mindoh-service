@@ -1,6 +1,8 @@
 package user
 
 import (
+	dbmodel "mindoh-service/internal/db"
+
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -13,32 +15,32 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
 	return &UserRepository{DB: db}
 }
 
-func (r *UserRepository) Create(user *User) error {
+func (r *UserRepository) Create(user *dbmodel.User) error {
 	return r.DB.Create(user).Error
 }
 
-func (r *UserRepository) GetByID(id uint) (*User, error) {
-	var user User
+func (r *UserRepository) GetByID(id uint) (*dbmodel.User, error) {
+	var user dbmodel.User
 	err := r.DB.First(&user, id).Error
 	return &user, err
 }
 
-func (r *UserRepository) GetByUsername(username string) (*User, error) {
-	var user User
+func (r *UserRepository) GetByUsername(username string) (*dbmodel.User, error) {
+	var user dbmodel.User
 	err := r.DB.Where("username = ?", username).First(&user).Error
 	return &user, err
 }
 
-func (r *UserRepository) Update(user *User) error {
+func (r *UserRepository) Update(user *dbmodel.User) error {
 	return r.DB.Save(user).Error
 }
 
 func (r *UserRepository) UpdateFields(userID uint, fields map[string]interface{}) error {
-	return r.DB.Model(&User{}).Where("id = ?", userID).Updates(fields).Error
+	return r.DB.Model(&dbmodel.User{}).Where("id = ?", userID).Updates(fields).Error
 }
 
 func (r *UserRepository) Delete(id uint) error {
-	return r.DB.Delete(&User{}, id).Error
+	return r.DB.Delete(&dbmodel.User{}, id).Error
 }
 
 func HashPassword(password string) (string, error) {

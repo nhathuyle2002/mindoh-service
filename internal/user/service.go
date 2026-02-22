@@ -3,6 +3,8 @@ package user
 import (
 	"fmt"
 
+	dbmodel "mindoh-service/internal/db"
+
 	"gorm.io/gorm"
 )
 
@@ -21,17 +23,17 @@ func NewUserService(db *gorm.DB) *UserService {
 }
 
 // GetUserByID retrieves a user by their ID
-func (s *UserService) GetUserByID(id uint) (*User, error) {
+func (s *UserService) GetUserByID(id uint) (*dbmodel.User, error) {
 	return s.Repo.GetByID(id)
 }
 
 // CreateUser creates a new user
-func (s *UserService) CreateUser(user *User) error {
+func (s *UserService) CreateUser(user *dbmodel.User) error {
 	return s.Repo.Create(user)
 }
 
 // UpdateUser updates an existing user
-func (s *UserService) UpdateUser(user *User) error {
+func (s *UserService) UpdateUser(user *dbmodel.User) error {
 	return s.Repo.Update(user)
 }
 
@@ -41,7 +43,7 @@ func (s *UserService) DeleteUser(id uint) error {
 }
 
 // ValidateCredentials validates user login credentials
-func (s *UserService) ValidateCredentials(username, password string) (*User, error) {
+func (s *UserService) ValidateCredentials(username, password string) (*dbmodel.User, error) {
 	user, err := s.Repo.GetByUsername(username)
 	if err != nil {
 		return nil, err

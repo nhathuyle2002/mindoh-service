@@ -2,8 +2,9 @@ package expense
 
 import (
 	"errors"
-	"math"
 	"mindoh-service/internal/currency"
+	dbmodel "mindoh-service/internal/db"
+	"mindoh-service/internal/dto"
 	"sort"
 	"strings"
 	"time"
@@ -18,29 +19,29 @@ func NewExpenseService(repo *ExpenseRepository) *ExpenseService {
 	return &ExpenseService{Repo: repo}
 }
 
-func (s *ExpenseService) AddExpense(expense *Expense) error {
+func (s *ExpenseService) AddExpense(expense *dbmodel.Expense) error {
 	// Validate amount sign based on kind
-	if expense.Kind == ExpenseKindExpense && expense.Amount > 0 {
+	if expense.Kind == dbmodel.ExpenseKindExpense && expense.Amount > 0 {
 		return errors.New("expense amount must be negative")
 	}
-	if expense.Kind == ExpenseKindIncome && expense.Amount < 0 {
+	if expense.Kind == dbmodel.ExpenseKindIncome && expense.Amount < 0 {
 		return errors.New("income amount must be positive")
 	}
 	return s.Repo.Create(expense)
 }
 
-func (s *ExpenseService) UpdateExpense(expense *Expense) error {
+func (s *ExpenseService) UpdateExpense(expense *dbmodel.Expense) error {
 	// Validate amount sign based on kind
-	if expense.Kind == ExpenseKindExpense && expense.Amount > 0 {
+	if expense.Kind == dbmodel.ExpenseKindExpense && expense.Amount > 0 {
 		return errors.New("expense amount must be negative")
 	}
-	if expense.Kind == ExpenseKindIncome && expense.Amount < 0 {
+	if expense.Kind == dbmodel.ExpenseKindIncome && expense.Amount < 0 {
 		return errors.New("income amount must be positive")
 	}
 	return s.Repo.Update(expense)
 }
 
-func (s *ExpenseService) GetExpenseByID(id uint) (*Expense, error) {
+func (s *ExpenseService) GetExpenseByID(id uint) (*dbmodel.Expense, error) {
 	return s.Repo.GetByID(id)
 }
 
@@ -52,14 +53,14 @@ func (s *ExpenseService) DeleteExpense(id uint) error {
 	return s.Repo.Delete(id)
 }
 
-func (s *ExpenseService) ListExpenses(filter ExpenseFilter) ([]Expense, error) {
+func (s *ExpenseService) ListExpenses(filter dto.ExpenseFilter) ([]dbmodel.Expense, error) {
 	return s.Repo.ListByFilter(filter)
 }
 
-func (s *ExpenseService) Summary(filter SummaryFilter) (*ExpenseSummary, error) {
+func (s *ExpenseService) Summary(filter dto.SummaryFilter) (*dto.ExpenseSummary, error) {
 	expenses, err := s.Repo.ListByDateRange(filter.UserID, filter.From, filter.To)
 	if err != nil {
-		return &ExpenseSummary{}, err
+		return &dto.ExpenseSummary{}, err
 	}
 
 	originalCurrency := filter.OriginalCurrency
@@ -75,11 +76,11 @@ func (s *ExpenseService) Summary(filter SummaryFilter) (*ExpenseSummary, error) 
 	return summary, nil
 }
 
-func (s *ExpenseService) computeSummary(expenses []Expense, targetCurrency string) *ExpenseSummary {
+func (s *ExpenseService) computeSummary(expenses []dbmodel.Expense, targetCurrency string) *dto.ExpenseSummary {
 	var totalIncome, totalExpense float64
 	totalByTypeIncome := make(map[string]float64)
 	totalByTypeExpense := make(map[string]float64)
-	byCurrency := make(map[string]*CurrencySummary)
+	byCurrency := make(map[string]*dto.CurrencySummary)
 
 	exchangeRates := currency.GetExchangeRateService().GetRates()
 	targetRate := exchangeRates[targetCurrency]
@@ -96,16 +97,16 @@ func (s *ExpenseService) computeSummary(expenses []Expense, targetCurrency strin
 
 		// Per-currency native amounts (not converted)
 		if _, ok := byCurrency[expense.Currency]; !ok {
-			byCurrency[expense.Currency] = &CurrencySummary{}
+			byCurrency[expense.Currency] = &dto.CurrencySummary{}
 		}
 
-		if expense.Kind == ExpenseKindIncome {
+		if expense.Kind == dbmodel.ExpenseKindIncome {
 			totalIncome += converted
 			totalByTypeIncome[expense.Type] += converted
 			byCurrency[expense.Currency].TotalIncome += expense.Amount
 		} else {
 			totalExpense += converted
-			totalByTypeExpense[expense.Type] += math.Abs(converted)
+			totalByTypeExpense[expense.Type] += converted
 			byCurrency[expense.Currency].TotalExpense += expense.Amount
 		}
 	}
@@ -116,12 +117,12 @@ func (s *ExpenseService) computeSummary(expenses []Expense, targetCurrency strin
 	}
 
 	// Only include ByCurrency when there are multiple currencies
-	var byCurrencyResult map[string]*CurrencySummary
+	var byCurrencyResult map[string]*dto.CurrencySummary
 	if len(byCurrency) > 1 {
 		byCurrencyResult = byCurrency
 	}
 
-	return &ExpenseSummary{
+	return &dto.ExpenseSummary{
 		Currency:           targetCurrency,
 		TotalIncome:        totalIncome,
 		TotalExpense:       totalExpense,
@@ -134,13 +135,13 @@ func (s *ExpenseService) computeSummary(expenses []Expense, targetCurrency strin
 
 // groupExpenses aggregates expenses into buckets according to groupBy (DAY, MONTH, YEAR),
 // converting all amounts to targetCurrency.
-func (s *ExpenseService) groupExpenses(expenses []Expense, groupBy string, targetCurrency string) []ExpenseGroup {
+func (s *ExpenseService) groupExpenses(expenses []dbmodel.Expense, groupBy string, targetCurrency string) []dto.ExpenseGroup {
 	if len(expenses) == 0 {
-		return []ExpenseGroup{}
+		return []dto.ExpenseGroup{}
 	}
 	mode := strings.ToUpper(groupBy)
 	if mode != "DAY" && mode != "MONTH" && mode != "YEAR" {
-		return []ExpenseGroup{}
+		return []dto.ExpenseGroup{}
 	}
 
 	exchangeRates := currency.GetExchangeRateService().GetRates()
@@ -179,7 +180,7 @@ func (s *ExpenseService) groupExpenses(expenses []Expense, groupBy string, targe
 		}
 		amount := exp.Amount * rate / targetRate
 		groups[key].TotalByType[exp.Type] += amount
-		if exp.Kind == ExpenseKindIncome {
+		if exp.Kind == dbmodel.ExpenseKindIncome {
 			groups[key].Income += amount
 		} else {
 			groups[key].Expense += amount
@@ -206,7 +207,7 @@ func (s *ExpenseService) groupExpenses(expenses []Expense, groupBy string, targe
 		return ti.Before(tj)
 	})
 
-	result := make([]ExpenseGroup, 0, len(keys))
+	result := make([]dto.ExpenseGroup, 0, len(keys))
 	for _, k := range keys {
 		g := groups[k]
 		label := k
@@ -218,7 +219,7 @@ func (s *ExpenseService) groupExpenses(expenses []Expense, groupBy string, targe
 			t, _ := time.Parse("2006-01", k)
 			label = t.Format("Jan 2006")
 		}
-		result = append(result, ExpenseGroup{
+		result = append(result, dto.ExpenseGroup{
 			Key:         k,
 			Label:       label,
 			Income:      g.Income,
