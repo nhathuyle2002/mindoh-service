@@ -81,6 +81,8 @@ type GroupsFilter struct {
 	From             string   `form:"from"              json:"from"`
 	To               string   `form:"to"                json:"to"`
 	GroupBy          string   `form:"group_by"          json:"group_by"`
+	OrderBy          string   `form:"order_by"          json:"order_by"`
+	OrderDir         string   `form:"order_dir"         json:"order_dir"`
 	Page             int      `form:"page"              json:"page"`
 	PageSize         int      `form:"page_size"         json:"page_size"`
 }

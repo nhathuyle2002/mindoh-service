@@ -185,13 +185,11 @@ func bucketSQL(groupBy string) (string, error) {
 	}
 }
 
-// ListGroupsAggByFilter runs three cheap SQL queries instead of loading every row:
-//  1. COUNT(DISTINCT bucket) for the total number of periods.
-//  2. SELECT DISTINCT bucket … LIMIT/OFFSET to get the current page of bucket keys.
-//  3. SELECT bucket, currency, type, kind, SUM(amount) for those keys only.
-//
-// Currency conversion is still done in Go so we can use live exchange rates.
-func (r *ExpenseRepository) ListGroupsAggByFilter(filter dto.GroupsFilter) (total int64, rows []GroupAggRow, err error) {
+// ListGroupsAggByFilter returns all time-bucket aggregation rows for the filter.
+// Sorting and pagination are handled in the service layer (Go-side) so that
+// computed fields like income/expense/balance (which require live exchange-rate
+// conversion) can be sorted accurately.
+func (r *ExpenseRepository) ListGroupsAggByFilter(filter dto.GroupsFilter) (rows []GroupAggRow, err error) {
 	expr, err := bucketSQL(filter.GroupBy)
 	if err != nil {
 		return
@@ -206,45 +204,10 @@ func (r *ExpenseRepository) ListGroupsAggByFilter(filter dto.GroupsFilter) (tota
 		To:         filter.To,
 	}
 
-	// 1. Total distinct buckets.
-	var countResult struct {
-		Cnt int64 `gorm:"column:cnt"`
-	}
-	if err = r.buildBaseQuery(lf).
-		Select(fmt.Sprintf("COUNT(DISTINCT %s) AS cnt", expr)).
-		Scan(&countResult).Error; err != nil {
-		return
-	}
-	total = countResult.Cnt
-
-	// 2. Bucket keys for this page.
-	page := filter.Page
-	if page < 1 {
-		page = 1
-	}
-	pageSize := filter.PageSize
-	if pageSize <= 0 {
-		pageSize = 12
-	}
-	var bucketKeys []string
-	if err = r.buildBaseQuery(lf).
-		Select(fmt.Sprintf("%s AS bucket", expr)).
-		Group(expr).
-		Order("bucket").
-		Limit(pageSize).Offset((page-1)*pageSize).
-		Pluck("bucket", &bucketKeys).Error; err != nil {
-		return
-	}
-	if len(bucketKeys) == 0 {
-		return
-	}
-
-	// 3. Full aggregation restricted to the paged bucket keys.
 	err = r.buildBaseQuery(lf).
-		Where(fmt.Sprintf("%s IN ?", expr), bucketKeys).
 		Select(fmt.Sprintf("%s AS bucket, currency, type, kind, SUM(amount) AS total", expr)).
 		Group(fmt.Sprintf("%s, currency, type, kind", expr)).
-		Order("bucket").
+		Order("bucket DESC").
 		Scan(&rows).Error
 	return
 }

@@ -5,6 +5,7 @@ import (
 	"mindoh-service/internal/currency"
 	dbmodel "mindoh-service/internal/db"
 	"mindoh-service/internal/dto"
+	"sort"
 	"strings"
 	"time"
 )
@@ -145,10 +146,10 @@ func (s *ExpenseService) computeSummary(expenses []dbmodel.Expense, targetCurren
 	}
 }
 
-// Groups uses DB-level GROUP BY (virtual bucket expression) to aggregate expenses into
-// time-bucket groups, paginating at the bucket level. Currency conversion uses live rates.
+// Groups aggregates expenses into time-bucket groups with Go-side sort and pagination.
+// Currency conversion uses live rates; sort/paginate in Go so computed fields are accurate.
 func (s *ExpenseService) Groups(filter dto.GroupsFilter) (*dto.ExpenseGroupsResponse, error) {
-	total, aggRows, err := s.Repo.ListGroupsAggByFilter(filter)
+	aggRows, err := s.Repo.ListGroupsAggByFilter(filter)
 	if err != nil {
 		return nil, err
 	}
@@ -204,20 +205,62 @@ func (s *ExpenseService) Groups(filter dto.GroupsFilter) (*dto.ExpenseGroupsResp
 		})
 	}
 
+	// Sort only when the caller explicitly requests it; otherwise keep
+	// the natural DB order (bucket DESC from the repository query).
+	orderBy := strings.ToLower(filter.OrderBy)
+	if orderBy != "" {
+		orderDir := strings.ToLower(filter.OrderDir)
+		if orderDir != "asc" {
+			orderDir = "desc"
+		}
+		sort.Slice(groups, func(i, j int) bool {
+			var less bool
+			switch orderBy {
+			case "income":
+				less = groups[i].Income < groups[j].Income
+			case "expense":
+				less = groups[i].Expense < groups[j].Expense
+			case "balance":
+				less = groups[i].Balance < groups[j].Balance
+			default: // "period"
+				less = groups[i].Key < groups[j].Key
+			}
+			if orderDir == "desc" {
+				return !less
+			}
+			return less
+		})
+	}
+
+	total := len(groups)
+
+	// Paginate.
 	page := filter.Page
 	if page < 1 {
 		page = 1
 	}
 	pageSize := filter.PageSize
-	if pageSize <= 0 {
-		pageSize = 12
+	var pagedGroups []dto.ExpenseGroup
+	if pageSize > 0 {
+		start := (page - 1) * pageSize
+		if start >= total {
+			pagedGroups = []dto.ExpenseGroup{}
+		} else {
+			end := start + pageSize
+			if end > total {
+				end = total
+			}
+			pagedGroups = groups[start:end]
+		}
+	} else {
+		pagedGroups = groups
 	}
 
 	return &dto.ExpenseGroupsResponse{
-		Total:    int(total),
+		Total:    total,
 		Page:     page,
 		PageSize: pageSize,
-		Groups:   groups,
+		Groups:   pagedGroups,
 	}, nil
 }
 
