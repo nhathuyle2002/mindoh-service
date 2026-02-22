@@ -70,3 +70,19 @@ func (r *ExpenseRepository) ListByFilter(filter ExpenseFilter) ([]Expense, error
 	err := db.Order("date desc").Find(&expenses).Error
 	return expenses, err
 }
+
+func (r *ExpenseRepository) ListByDateRange(userID uint, from, to string) ([]Expense, error) {
+	var expenses []Expense
+	db := r.DB.Model(&Expense{})
+	if userID != 0 {
+		db = db.Where("user_id = ?", userID)
+	}
+	if from != "" {
+		db = db.Where("date >= ?", from)
+	}
+	if to != "" {
+		db = db.Where("date <= ?", to)
+	}
+	err := db.Order("date desc").Find(&expenses).Error
+	return expenses, err
+}

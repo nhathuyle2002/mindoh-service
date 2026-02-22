@@ -51,32 +51,31 @@ type ExpenseCreateRequest struct {
 }
 
 type ExpenseFilter struct {
-	UserID           uint     `form:"user_id" json:"user_id"`
-	Kind             string   `form:"kind" json:"kind"`
-	Type             string   `form:"type" json:"type"`
-	Currencies       []string `form:"currencies" json:"currencies"`               // Filter by multiple currencies
-	OriginalCurrency string   `form:"original_currency" json:"original_currency"` // Currency to convert totals into when no currency filter
-	From             string   `form:"from" json:"from"`                           // Format: YYYY-MM-DD
-	To               string   `form:"to" json:"to"`                               // Format: YYYY-MM-DD
-	GroupBy          string   `form:"group_by" json:"group_by"`                   // DAY, MONTH, YEAR (uppercase, case-insensitive)
+	UserID     uint     `form:"user_id" json:"user_id"`
+	Kind       string   `form:"kind" json:"kind"`
+	Type       string   `form:"type" json:"type"`
+	Currencies []string `form:"currencies" json:"currencies"` // Filter by multiple currencies
+	From       string   `form:"from" json:"from"`             // Format: YYYY-MM-DD
+	To         string   `form:"to" json:"to"`                 // Format: YYYY-MM-DD
+}
+
+// SummaryFilter is used exclusively for the summary endpoint.
+type SummaryFilter struct {
+	UserID           uint   `form:"user_id" json:"user_id"`
+	OriginalCurrency string `form:"original_currency" json:"original_currency"` // Currency to express totals in (default: VND)
+	From             string `form:"from" json:"from"`                           // Format: YYYY-MM-DD
+	To               string `form:"to" json:"to"`                               // Format: YYYY-MM-DD
+	GroupBy          string `form:"group_by" json:"group_by"`                   // DAY, MONTH, YEAR
 }
 
 type ExpenseSummary struct {
-	Expenses     []Expense                   `json:"expenses"`
-	Currency     string                      `json:"currency"` // The currency for totals (if filtered) or base currency (VND)
-	TotalIncome  float64                     `json:"total_income"`
-	TotalExpense float64                     `json:"total_expense"`
-	Balance      float64                     `json:"balance"`
-	TotalByType  map[string]float64          `json:"total_by_type"`
-	ByCurrency   map[string]*CurrencySummary `json:"by_currency,omitempty"` // Only present when no currency filter
-	Groups       []ExpenseGroup              `json:"groups,omitempty"`      // Optional grouped summary buckets
-}
-
-type CurrencySummary struct {
-	TotalIncome  float64            `json:"total_income"`
-	TotalExpense float64            `json:"total_expense"`
-	Balance      float64            `json:"balance"`
-	TotalByType  map[string]float64 `json:"total_by_type"`
+	Currency           string             `json:"currency"` // Currency totals are expressed in
+	TotalIncome        float64            `json:"total_income"`
+	TotalExpense       float64            `json:"total_expense"`
+	Balance            float64            `json:"balance"`
+	TotalByTypeIncome  map[string]float64 `json:"total_by_type_income"`  // Income totals per type (converted)
+	TotalByTypeExpense map[string]float64 `json:"total_by_type_expense"` // Expense totals per type (absolute, converted)
+	Groups             []ExpenseGroup     `json:"groups,omitempty"`      // Only present when group_by is set
 }
 
 // ExpenseGroup represents aggregated totals for a grouping bucket (day/month/year)

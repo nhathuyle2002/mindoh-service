@@ -194,15 +194,15 @@ func (h *ExpenseHandler) ListExpenses(c *gin.Context) {
 
 // Summary godoc
 // @Summary Get expense summary
-// @Description Get summary of expenses with optional filtering
+// @Description Get totals (income, expense, balance) for a date range. Optionally group by DAY, MONTH, or YEAR.
 // @Tags expenses
 // @Accept json
 // @Produce json
 // @Param user_id query int false "User ID"
-// @Param kind query string false "Expense kind (expense/income)"
-// @Param type query string false "Expense type (food/salary/transport/entertainment)"
+// @Param original_currency query string false "Currency to express totals in (default: VND)"
 // @Param from query string false "Start date (YYYY-MM-DD)"
 // @Param to query string false "End date (YYYY-MM-DD)"
+// @Param group_by query string false "Bucket size: DAY, MONTH or YEAR"
 // @Success 200 {object} ExpenseSummary "Expense summary"
 // @Failure 400 {object} map[string]interface{} "Invalid query parameters"
 // @Failure 403 {object} map[string]interface{} "Forbidden"
@@ -213,7 +213,7 @@ func (h *ExpenseHandler) Summary(c *gin.Context) {
 	authCtx := auth.GetAuthContext(c)
 	userID := authCtx.UserID
 	role := authCtx.Role
-	var filter ExpenseFilter
+	var filter SummaryFilter
 	if err := c.ShouldBindQuery(&filter); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameters"})
 		return
