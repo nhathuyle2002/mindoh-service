@@ -159,7 +159,7 @@ func (h *ExpenseHandler) UpdateExpense(c *gin.Context) {
 // @Produce json
 // @Param user_id query int false "User ID"
 // @Param kind query string false "Expense kind (expense/income)"
-// @Param type query string false "Expense type (food/salary/transport/entertainment)"
+// @Param types query []string false "Expense types filter (food/salary/transport/entertainment) - accepts multiple"
 // @Param from query string false "Start date (YYYY-MM-DD)"
 // @Param to query string false "End date (YYYY-MM-DD)"
 // @Param order_by query string false "Column to order by: date, amount, type, kind, currency, created_at (default: date)"
@@ -192,9 +192,13 @@ func (h *ExpenseHandler) ListExpenses(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch expenses"})
 		return
 	}
+	incomeCount, expenseCount, byCurrency := h.Service.computeListMeta(expenses)
 	c.JSON(http.StatusOK, dto.ExpenseListResponse{
-		Count: len(expenses),
-		Data:  toExpenseResponseList(expenses),
+		Count:        len(expenses),
+		IncomeCount:  incomeCount,
+		ExpenseCount: expenseCount,
+		ByCurrency:   byCurrency,
+		Data:         toExpenseResponseList(expenses),
 	})
 }
 

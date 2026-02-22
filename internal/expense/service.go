@@ -58,6 +58,27 @@ func (s *ExpenseService) ListExpenses(filter dto.ExpenseFilter) ([]dbmodel.Expen
 	return s.Repo.ListByFilter(filter)
 }
 
+// computeListMeta computes income/expense counts and per-native-currency totals from a list.
+func (s *ExpenseService) computeListMeta(expenses []dbmodel.Expense) (incomeCount, expenseCount int, byCurrency map[string]*dto.CurrencySummary) {
+	byCurrency = make(map[string]*dto.CurrencySummary)
+	for _, e := range expenses {
+		if _, ok := byCurrency[e.Currency]; !ok {
+			byCurrency[e.Currency] = &dto.CurrencySummary{}
+		}
+		if e.Kind == dbmodel.ExpenseKindIncome {
+			incomeCount++
+			byCurrency[e.Currency].TotalIncome += e.Amount
+		} else {
+			expenseCount++
+			byCurrency[e.Currency].TotalExpense += e.Amount
+		}
+	}
+	for _, cs := range byCurrency {
+		cs.TotalBalance = cs.TotalIncome + cs.TotalExpense
+	}
+	return
+}
+
 func (s *ExpenseService) Summary(filter dto.SummaryFilter) (*dto.ExpenseSummary, error) {
 	expenses, err := s.Repo.ListByDateRange(filter.UserID, filter.From, filter.To)
 	if err != nil {

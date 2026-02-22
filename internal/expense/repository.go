@@ -58,8 +58,8 @@ func (r *ExpenseRepository) ListByFilter(filter dto.ExpenseFilter) ([]dbmodel.Ex
 	if filter.Kind != "" {
 		query = query.Where("kind = ?", filter.Kind)
 	}
-	if filter.Type != "" {
-		query = query.Where("type = ?", strings.ToLower(strings.TrimSpace(filter.Type)))
+	if len(filter.Types) > 0 {
+		query = query.Where("type IN ?", filter.Types)
 	}
 	if len(filter.Currencies) > 0 {
 		query = query.Where("currency IN ?", filter.Currencies)

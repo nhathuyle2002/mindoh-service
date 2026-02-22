@@ -13,10 +13,13 @@ type ExpenseResponse struct {
 	Date        string  `json:"date"`
 }
 
-// ExpenseListResponse wraps the list response with count metadata.
+// ExpenseListResponse wraps the list response with count metadata and summary stats.
 type ExpenseListResponse struct {
-	Count int               `json:"count"`
-	Data  []ExpenseResponse `json:"data"`
+	Count        int                         `json:"count"`
+	IncomeCount  int                         `json:"income_count"`
+	ExpenseCount int                         `json:"expense_count"`
+	ByCurrency   map[string]*CurrencySummary `json:"by_currency,omitempty"`
+	Data         []ExpenseResponse           `json:"data"`
 }
 
 // ExpenseCreateRequest is the request body for creating an expense.
@@ -46,7 +49,7 @@ type ExpenseUpdateRequest struct {
 type ExpenseFilter struct {
 	UserID     uint     `form:"user_id"    json:"user_id"`
 	Kind       string   `form:"kind"       json:"kind"`
-	Type       string   `form:"type"       json:"type"`
+	Types      []string `form:"types"      json:"types"`
 	Currencies []string `form:"currencies" json:"currencies"`
 	From       string   `form:"from"       json:"from"`
 	To         string   `form:"to"         json:"to"`
