@@ -67,7 +67,27 @@ func (r *ExpenseRepository) ListByFilter(filter ExpenseFilter) ([]Expense, error
 	if filter.To != "" {
 		db = db.Where("date <= ?", filter.To)
 	}
-	err := db.Order("date desc").Find(&expenses).Error
+
+	// Build ORDER BY clause
+	allowedColumns := map[string]string{
+		"date":       "date",
+		"amount":     "amount",
+		"type":       "type",
+		"kind":       "kind",
+		"currency":   "currency",
+		"created_at": "created_at",
+	}
+	orderCol := "date"
+	if col, ok := allowedColumns[strings.ToLower(filter.OrderBy)]; ok {
+		orderCol = col
+	}
+	orderDir := "desc"
+	if strings.ToLower(filter.OrderDir) == "asc" {
+		orderDir = "asc"
+	}
+	db = db.Order(orderCol + " " + orderDir)
+
+	err := db.Find(&expenses).Error
 	return expenses, err
 }
 

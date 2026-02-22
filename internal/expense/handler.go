@@ -151,7 +151,7 @@ func (h *ExpenseHandler) UpdateExpense(c *gin.Context) {
 
 // ListExpenses godoc
 // @Summary List expenses
-// @Description Get list of expenses with optional filtering
+// @Description Get list of expenses with optional filtering and ordering
 // @Tags expenses
 // @Accept json
 // @Produce json
@@ -160,8 +160,9 @@ func (h *ExpenseHandler) UpdateExpense(c *gin.Context) {
 // @Param type query string false "Expense type (food/salary/transport/entertainment)"
 // @Param from query string false "Start date (YYYY-MM-DD)"
 // @Param to query string false "End date (YYYY-MM-DD)"
-// @Param group_by query string false "Group by dimension (DAY, MONTH, YEAR)"
-// @Success 200 {array} Expense "List of expenses"
+// @Param order_by query string false "Column to order by: date, amount, type, kind, currency, created_at (default: date)"
+// @Param order_dir query string false "Order direction: asc or desc (default: desc)"
+// @Success 200 {object} ExpenseListResponse "List of expenses with count"
 // @Failure 400 {object} map[string]interface{} "Invalid query parameters"
 // @Failure 403 {object} map[string]interface{} "Forbidden"
 // @Failure 500 {object} map[string]interface{} "Internal server error"
@@ -189,7 +190,10 @@ func (h *ExpenseHandler) ListExpenses(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch expenses"})
 		return
 	}
-	c.JSON(http.StatusOK, expenses)
+	c.JSON(http.StatusOK, ExpenseListResponse{
+		Count: len(expenses),
+		Data:  expenses,
+	})
 }
 
 // Summary godoc

@@ -79,6 +79,7 @@ func (s *ExpenseService) computeSummary(expenses []Expense, targetCurrency strin
 	var totalIncome, totalExpense float64
 	totalByTypeIncome := make(map[string]float64)
 	totalByTypeExpense := make(map[string]float64)
+	byCurrency := make(map[string]*CurrencySummary)
 
 	exchangeRates := currency.GetExchangeRateService().GetRates()
 	targetRate := exchangeRates[targetCurrency]
@@ -92,22 +93,42 @@ func (s *ExpenseService) computeSummary(expenses []Expense, targetCurrency strin
 			rate = 1
 		}
 		converted := expense.Amount * rate / targetRate
+
+		// Per-currency native amounts (not converted)
+		if _, ok := byCurrency[expense.Currency]; !ok {
+			byCurrency[expense.Currency] = &CurrencySummary{}
+		}
+
 		if expense.Kind == ExpenseKindIncome {
 			totalIncome += converted
 			totalByTypeIncome[expense.Type] += converted
+			byCurrency[expense.Currency].TotalIncome += expense.Amount
 		} else {
 			totalExpense += converted
 			totalByTypeExpense[expense.Type] += math.Abs(converted)
+			byCurrency[expense.Currency].TotalExpense += expense.Amount
 		}
+	}
+
+	// Compute per-currency balance
+	for _, cs := range byCurrency {
+		cs.TotalBalance = cs.TotalIncome + cs.TotalExpense
+	}
+
+	// Only include ByCurrency when there are multiple currencies
+	var byCurrencyResult map[string]*CurrencySummary
+	if len(byCurrency) > 1 {
+		byCurrencyResult = byCurrency
 	}
 
 	return &ExpenseSummary{
 		Currency:           targetCurrency,
 		TotalIncome:        totalIncome,
 		TotalExpense:       totalExpense,
-		Balance:            totalIncome + totalExpense,
+		TotalBalance:       totalIncome + totalExpense,
 		TotalByTypeIncome:  totalByTypeIncome,
 		TotalByTypeExpense: totalByTypeExpense,
+		ByCurrency:         byCurrencyResult,
 	}
 }
 

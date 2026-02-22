@@ -57,6 +57,14 @@ type ExpenseFilter struct {
 	Currencies []string `form:"currencies" json:"currencies"` // Filter by multiple currencies
 	From       string   `form:"from" json:"from"`             // Format: YYYY-MM-DD
 	To         string   `form:"to" json:"to"`                 // Format: YYYY-MM-DD
+	OrderBy    string   `form:"order_by" json:"order_by"`     // Column: date, amount, type, kind, currency, created_at (default: date)
+	OrderDir   string   `form:"order_dir" json:"order_dir"`   // asc or desc (default: desc)
+}
+
+// ExpenseListResponse wraps the list response with count metadata
+type ExpenseListResponse struct {
+	Count int       `json:"count"`
+	Data  []Expense `json:"data"`
 }
 
 // SummaryFilter is used exclusively for the summary endpoint.
@@ -68,14 +76,22 @@ type SummaryFilter struct {
 	GroupBy          string `form:"group_by" json:"group_by"`                   // DAY, MONTH, YEAR
 }
 
+// CurrencySummary holds per-native-currency income/expense/balance (not converted)
+type CurrencySummary struct {
+	TotalIncome  float64 `json:"total_income"`
+	TotalExpense float64 `json:"total_expense"`
+	TotalBalance float64 `json:"total_balance"`
+}
+
 type ExpenseSummary struct {
-	Currency           string             `json:"currency"` // Currency totals are expressed in
-	TotalIncome        float64            `json:"total_income"`
-	TotalExpense       float64            `json:"total_expense"`
-	Balance            float64            `json:"balance"`
-	TotalByTypeIncome  map[string]float64 `json:"total_by_type_income"`  // Income totals per type (converted)
-	TotalByTypeExpense map[string]float64 `json:"total_by_type_expense"` // Expense totals per type (absolute, converted)
-	Groups             []ExpenseGroup     `json:"groups,omitempty"`      // Only present when group_by is set
+	Currency           string                      `json:"currency"` // Currency totals are expressed in
+	TotalIncome        float64                     `json:"total_income"`
+	TotalExpense       float64                     `json:"total_expense"`
+	TotalBalance       float64                     `json:"total_balance"`
+	TotalByTypeIncome  map[string]float64          `json:"total_by_type_income"`  // Income totals per type (converted)
+	TotalByTypeExpense map[string]float64          `json:"total_by_type_expense"` // Expense totals per type (absolute, converted)
+	ByCurrency         map[string]*CurrencySummary `json:"by_currency,omitempty"` // Per-currency breakdown in native amounts
+	Groups             []ExpenseGroup              `json:"groups,omitempty"`      // Only present when group_by is set
 }
 
 // ExpenseGroup represents aggregated totals for a grouping bucket (day/month/year)
