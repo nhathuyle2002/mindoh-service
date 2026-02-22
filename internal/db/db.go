@@ -20,10 +20,8 @@ func ConnectDatabase(cfg *config.Config) {
 	}
 	DB = database
 
-	// Auto-migrate User model
-	err = DB.AutoMigrate(&user.User{})
-	err = DB.AutoMigrate(&expense.Expense{})
-	if err != nil {
+	// Auto-migrate models
+	if err := DB.AutoMigrate(&user.User{}, &expense.Expense{}); err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
 }
