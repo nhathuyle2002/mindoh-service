@@ -8,7 +8,6 @@ import (
 // toUserResponse maps a User model to a UserResponse DTO.
 func toUserResponse(u *dbmodel.User) dto.UserResponse {
 	return dto.UserResponse{
-		ID:        u.ID,
 		Username:  u.Username,
 		Email:     u.Email,
 		Role:      string(u.Role),

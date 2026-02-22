@@ -40,7 +40,6 @@ type UserUpdateRequest struct {
 
 // UserResponse is the public-facing user representation (no password hash).
 type UserResponse struct {
-	ID        uint   `json:"id"`
 	Username  string `json:"username"`
 	Email     string `json:"email"`
 	Role      string `json:"role"`
