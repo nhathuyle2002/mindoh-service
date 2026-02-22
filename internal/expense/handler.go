@@ -192,27 +192,37 @@ func (h *ExpenseHandler) ListExpenses(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch expenses"})
 		return
 	}
-	incomeCount, expenseCount, byCurrency := h.Service.computeListMeta(expenses)
+
+	page := filter.Page
+	if page < 1 {
+		page = 1
+	}
+	pageSize := filter.PageSize
+	if pageSize <= 0 {
+		pageSize = 25
+	}
+
 	c.JSON(http.StatusOK, dto.ExpenseListResponse{
-		Count:        len(expenses),
-		IncomeCount:  incomeCount,
-		ExpenseCount: expenseCount,
-		ByCurrency:   byCurrency,
-		Data:         toExpenseResponseList(expenses),
+		Page:     page,
+		PageSize: pageSize,
+		Count:    len(expenses),
+		Data:     toExpenseResponseList(expenses),
 	})
 }
 
 // Summary godoc
 // @Summary Get expense summary
-// @Description Get totals (income, expense, balance) for a date range. Optionally group by DAY, MONTH, or YEAR.
+// @Description Get totals (income, expense, balance) for a filtered set of records.
 // @Tags expenses
 // @Accept json
 // @Produce json
 // @Param user_id query int false "User ID"
+// @Param kind query string false "Filter by kind (expense/income)"
+// @Param types query []string false "Filter by types"
+// @Param currencies query []string false "Filter by currencies"
 // @Param original_currency query string false "Currency to express totals in (default: VND)"
 // @Param from query string false "Start date (YYYY-MM-DD)"
 // @Param to query string false "End date (YYYY-MM-DD)"
-// @Param group_by query string false "Bucket size: DAY, MONTH or YEAR"
 // @Success 200 {object} dto.ExpenseSummary "Expense summary"
 // @Failure 400 {object} map[string]interface{} "Invalid query parameters"
 // @Failure 403 {object} map[string]interface{} "Forbidden"
@@ -242,6 +252,53 @@ func (h *ExpenseHandler) Summary(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, summary)
+}
+
+// Groups godoc
+// @Summary Get expense groups
+// @Description Get paginated time-bucket groups (DAY/WEEK/MONTH/YEAR) for a filtered set of records.
+// @Tags expenses
+// @Accept json
+// @Produce json
+// @Param user_id query int false "User ID"
+// @Param kind query string false "Filter by kind (expense/income)"
+// @Param types query []string false "Filter by types"
+// @Param currencies query []string false "Filter by currencies"
+// @Param original_currency query string false "Currency to express totals in (default: VND)"
+// @Param from query string false "Start date (YYYY-MM-DD)"
+// @Param to query string false "End date (YYYY-MM-DD)"
+// @Param group_by query string true "Bucket size: DAY, WEEK, MONTH or YEAR"
+// @Param page query int false "Page (default: 1)"
+// @Param page_size query int false "Page size (default: all)"
+// @Success 200 {object} dto.ExpenseGroupsResponse "Paginated expense groups"
+// @Failure 400 {object} map[string]interface{} "Invalid query parameters"
+// @Failure 403 {object} map[string]interface{} "Forbidden"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security BearerAuth
+// @Router /expenses/groups [get]
+func (h *ExpenseHandler) Groups(c *gin.Context) {
+	authCtx := auth.GetAuthContext(c)
+	userID := authCtx.UserID
+	role := authCtx.Role
+	var filter dto.GroupsFilter
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameters"})
+		return
+	}
+	if role == auth.RoleUser && filter.UserID != 0 && filter.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You can only view your own expenses"})
+		return
+	}
+	if role == auth.RoleUser || filter.UserID == 0 {
+		filter.UserID = userID
+	}
+
+	result, err := h.Service.Groups(filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch groups"})
+		return
+	}
+	c.JSON(http.StatusOK, result)
 }
 
 // DeleteExpense godoc

@@ -1,6 +1,7 @@
 package expense
 
 import (
+	"fmt"
 	"strings"
 
 	dbmodel "mindoh-service/internal/db"
@@ -49,29 +50,73 @@ func (r *ExpenseRepository) GetUniqueTypes(userID uint) ([]string, error) {
 	return types, err
 }
 
-func (r *ExpenseRepository) ListByFilter(filter dto.ExpenseFilter) ([]dbmodel.Expense, error) {
-	var expenses []dbmodel.Expense
-	query := r.DB.Model(&dbmodel.Expense{})
+// buildBaseQuery applies all WHERE clauses from filter (no ORDER BY, no LIMIT).
+func (r *ExpenseRepository) buildBaseQuery(filter dto.ExpenseFilter) *gorm.DB {
+	q := r.DB.Model(&dbmodel.Expense{})
 	if filter.UserID != 0 {
-		query = query.Where("user_id = ?", filter.UserID)
+		q = q.Where("user_id = ?", filter.UserID)
 	}
 	if filter.Kind != "" {
-		query = query.Where("kind = ?", filter.Kind)
+		q = q.Where("kind = ?", filter.Kind)
 	}
 	if len(filter.Types) > 0 {
-		query = query.Where("type IN ?", filter.Types)
+		q = q.Where("type IN ?", filter.Types)
 	}
 	if len(filter.Currencies) > 0 {
-		query = query.Where("currency IN ?", filter.Currencies)
+		q = q.Where("currency IN ?", filter.Currencies)
 	}
 	if filter.From != "" {
-		query = query.Where("date >= ?", filter.From)
+		q = q.Where("date >= ?", filter.From)
 	}
 	if filter.To != "" {
-		query = query.Where("date <= ?", filter.To)
+		q = q.Where("date <= ?", filter.To)
 	}
+	return q
+}
 
-	// Build ORDER BY clause
+// AggregateMeta runs a single lightweight GROUP BY query to compute
+// total count, income/expense counts, and per-currency totals — no row fetching.
+func (r *ExpenseRepository) AggregateMeta(filter dto.ExpenseFilter) (total, incomeCount, expenseCount int, byCurrency map[string]*dto.CurrencySummary, err error) {
+	type row struct {
+		Kind     string  `gorm:"column:kind"`
+		Currency string  `gorm:"column:currency"`
+		Cnt      int     `gorm:"column:cnt"`
+		SumAmt   float64 `gorm:"column:sum_amt"`
+	}
+	var rows []row
+	err = r.buildBaseQuery(filter).
+		Select("kind, currency, COUNT(*) AS cnt, SUM(amount) AS sum_amt").
+		Group("kind, currency").
+		Scan(&rows).Error
+	if err != nil {
+		return
+	}
+	byCurrency = map[string]*dto.CurrencySummary{}
+	for _, rw := range rows {
+		total += rw.Cnt
+		if rw.Kind == "income" {
+			incomeCount += rw.Cnt
+		} else {
+			expenseCount += rw.Cnt
+		}
+		cs, ok := byCurrency[rw.Currency]
+		if !ok {
+			cs = &dto.CurrencySummary{}
+			byCurrency[rw.Currency] = cs
+		}
+		if rw.Kind == "income" {
+			cs.TotalIncome += rw.SumAmt
+		} else {
+			cs.TotalExpense += rw.SumAmt
+		}
+		cs.TotalBalance += rw.SumAmt
+	}
+	return
+}
+
+func (r *ExpenseRepository) ListByFilter(filter dto.ExpenseFilter) ([]dbmodel.Expense, error) {
+	var expenses []dbmodel.Expense
+
 	allowedColumns := map[string]string{
 		"date":       "date",
 		"amount":     "amount",
@@ -88,24 +133,118 @@ func (r *ExpenseRepository) ListByFilter(filter dto.ExpenseFilter) ([]dbmodel.Ex
 	if strings.ToLower(filter.OrderDir) == "asc" {
 		orderDir = "asc"
 	}
-	query = query.Order(orderCol + " " + orderDir)
+
+	query := r.buildBaseQuery(filter).Order(orderCol + " " + orderDir)
+
+	// DB-level pagination
+	if filter.PageSize > 0 {
+		page := filter.Page
+		if page < 1 {
+			page = 1
+		}
+		offset := (page - 1) * filter.PageSize
+		query = query.Limit(filter.PageSize).Offset(offset)
+	}
 
 	err := query.Find(&expenses).Error
 	return expenses, err
 }
 
-func (r *ExpenseRepository) ListByDateRange(userID uint, from, to string) ([]dbmodel.Expense, error) {
+// ListAllByFilter fetches all matching rows with no LIMIT/OFFSET — used by the summary endpoint
+// which needs every matching record to compute aggregated totals.
+func (r *ExpenseRepository) ListAllByFilter(filter dto.ExpenseFilter) ([]dbmodel.Expense, error) {
 	var expenses []dbmodel.Expense
-	query := r.DB.Model(&dbmodel.Expense{})
-	if userID != 0 {
-		query = query.Where("user_id = ?", userID)
-	}
-	if from != "" {
-		query = query.Where("date >= ?", from)
-	}
-	if to != "" {
-		query = query.Where("date <= ?", to)
-	}
-	err := query.Order("date desc").Find(&expenses).Error
+	err := r.buildBaseQuery(filter).Order("date desc").Find(&expenses).Error
 	return expenses, err
+}
+
+// GroupAggRow is one row returned by ListGroupsAggByFilter.
+type GroupAggRow struct {
+	Bucket   string  `gorm:"column:bucket"`
+	Currency string  `gorm:"column:currency"`
+	Type     string  `gorm:"column:type"`
+	Kind     string  `gorm:"column:kind"`
+	Total    float64 `gorm:"column:total"`
+}
+
+// bucketSQL returns the PostgreSQL expression that maps a varchar date (YYYY-MM-DD)
+// to a time-bucket key string that sorts lexicographically.
+func bucketSQL(groupBy string) (string, error) {
+	switch strings.ToUpper(groupBy) {
+	case "DAY":
+		return "date", nil
+	case "WEEK":
+		// Monday of the ISO week, kept as YYYY-MM-DD so it sorts naturally.
+		return "TO_CHAR(DATE_TRUNC('week', date::date), 'YYYY-MM-DD')", nil
+	case "MONTH":
+		return "SUBSTRING(date, 1, 7)", nil
+	case "YEAR":
+		return "SUBSTRING(date, 1, 4)", nil
+	default:
+		return "", fmt.Errorf("unsupported group_by value: %s", groupBy)
+	}
+}
+
+// ListGroupsAggByFilter runs three cheap SQL queries instead of loading every row:
+//  1. COUNT(DISTINCT bucket) for the total number of periods.
+//  2. SELECT DISTINCT bucket … LIMIT/OFFSET to get the current page of bucket keys.
+//  3. SELECT bucket, currency, type, kind, SUM(amount) for those keys only.
+//
+// Currency conversion is still done in Go so we can use live exchange rates.
+func (r *ExpenseRepository) ListGroupsAggByFilter(filter dto.GroupsFilter) (total int64, rows []GroupAggRow, err error) {
+	expr, err := bucketSQL(filter.GroupBy)
+	if err != nil {
+		return
+	}
+
+	lf := dto.ExpenseFilter{
+		UserID:     filter.UserID,
+		Kind:       filter.Kind,
+		Types:      filter.Types,
+		Currencies: filter.Currencies,
+		From:       filter.From,
+		To:         filter.To,
+	}
+
+	// 1. Total distinct buckets.
+	var countResult struct {
+		Cnt int64 `gorm:"column:cnt"`
+	}
+	if err = r.buildBaseQuery(lf).
+		Select(fmt.Sprintf("COUNT(DISTINCT %s) AS cnt", expr)).
+		Scan(&countResult).Error; err != nil {
+		return
+	}
+	total = countResult.Cnt
+
+	// 2. Bucket keys for this page.
+	page := filter.Page
+	if page < 1 {
+		page = 1
+	}
+	pageSize := filter.PageSize
+	if pageSize <= 0 {
+		pageSize = 12
+	}
+	var bucketKeys []string
+	if err = r.buildBaseQuery(lf).
+		Select(fmt.Sprintf("%s AS bucket", expr)).
+		Group(expr).
+		Order("bucket").
+		Limit(pageSize).Offset((page-1)*pageSize).
+		Pluck("bucket", &bucketKeys).Error; err != nil {
+		return
+	}
+	if len(bucketKeys) == 0 {
+		return
+	}
+
+	// 3. Full aggregation restricted to the paged bucket keys.
+	err = r.buildBaseQuery(lf).
+		Where(fmt.Sprintf("%s IN ?", expr), bucketKeys).
+		Select(fmt.Sprintf("%s AS bucket, currency, type, kind, SUM(amount) AS total", expr)).
+		Group(fmt.Sprintf("%s, currency, type, kind", expr)).
+		Order("bucket").
+		Scan(&rows).Error
+	return
 }

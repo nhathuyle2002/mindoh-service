@@ -2,11 +2,9 @@ package expense
 
 import (
 	"errors"
-	"fmt"
 	"mindoh-service/internal/currency"
 	dbmodel "mindoh-service/internal/db"
 	"mindoh-service/internal/dto"
-	"sort"
 	"strings"
 	"time"
 )
@@ -58,29 +56,20 @@ func (s *ExpenseService) ListExpenses(filter dto.ExpenseFilter) ([]dbmodel.Expen
 	return s.Repo.ListByFilter(filter)
 }
 
-// computeListMeta computes income/expense counts and per-native-currency totals from a list.
-func (s *ExpenseService) computeListMeta(expenses []dbmodel.Expense) (incomeCount, expenseCount int, byCurrency map[string]*dto.CurrencySummary) {
-	byCurrency = make(map[string]*dto.CurrencySummary)
-	for _, e := range expenses {
-		if _, ok := byCurrency[e.Currency]; !ok {
-			byCurrency[e.Currency] = &dto.CurrencySummary{}
-		}
-		if e.Kind == dbmodel.ExpenseKindIncome {
-			incomeCount++
-			byCurrency[e.Currency].TotalIncome += e.Amount
-		} else {
-			expenseCount++
-			byCurrency[e.Currency].TotalExpense += e.Amount
-		}
-	}
-	for _, cs := range byCurrency {
-		cs.TotalBalance = cs.TotalIncome + cs.TotalExpense
-	}
-	return
+func (s *ExpenseService) AggregateMeta(filter dto.ExpenseFilter) (total, incomeCount, expenseCount int, byCurrency map[string]*dto.CurrencySummary, err error) {
+	return s.Repo.AggregateMeta(filter)
 }
 
 func (s *ExpenseService) Summary(filter dto.SummaryFilter) (*dto.ExpenseSummary, error) {
-	expenses, err := s.Repo.ListByDateRange(filter.UserID, filter.From, filter.To)
+	listFilter := dto.ExpenseFilter{
+		UserID:     filter.UserID,
+		Kind:       filter.Kind,
+		Types:      filter.Types,
+		Currencies: filter.Currencies,
+		From:       filter.From,
+		To:         filter.To,
+	}
+	expenses, err := s.Repo.ListAllByFilter(listFilter)
 	if err != nil {
 		return &dto.ExpenseSummary{}, err
 	}
@@ -91,15 +80,12 @@ func (s *ExpenseService) Summary(filter dto.SummaryFilter) (*dto.ExpenseSummary,
 	}
 
 	summary := s.computeSummary(expenses, originalCurrency)
-
-	if filter.GroupBy != "" {
-		summary.Groups = s.groupExpenses(expenses, filter.GroupBy, originalCurrency)
-	}
 	return summary, nil
 }
 
 func (s *ExpenseService) computeSummary(expenses []dbmodel.Expense, targetCurrency string) *dto.ExpenseSummary {
 	var totalIncome, totalExpense float64
+	var incomeCount, expenseCount int
 	totalByTypeIncome := make(map[string]float64)
 	totalByTypeExpense := make(map[string]float64)
 	byCurrency := make(map[string]*dto.CurrencySummary)
@@ -123,10 +109,12 @@ func (s *ExpenseService) computeSummary(expenses []dbmodel.Expense, targetCurren
 		}
 
 		if expense.Kind == dbmodel.ExpenseKindIncome {
+			incomeCount++
 			totalIncome += converted
 			totalByTypeIncome[expense.Type] += converted
 			byCurrency[expense.Currency].TotalIncome += expense.Amount
 		} else {
+			expenseCount++
 			totalExpense += converted
 			totalByTypeExpense[expense.Type] += converted
 			byCurrency[expense.Currency].TotalExpense += expense.Amount
@@ -146,6 +134,8 @@ func (s *ExpenseService) computeSummary(expenses []dbmodel.Expense, targetCurren
 
 	return &dto.ExpenseSummary{
 		Currency:           targetCurrency,
+		IncomeCount:        incomeCount,
+		ExpenseCount:       expenseCount,
 		TotalIncome:        totalIncome,
 		TotalExpense:       totalExpense,
 		TotalBalance:       totalIncome + totalExpense,
@@ -155,19 +145,21 @@ func (s *ExpenseService) computeSummary(expenses []dbmodel.Expense, targetCurren
 	}
 }
 
-// groupExpenses aggregates expenses into buckets according to groupBy (DAY, WEEK, MONTH, YEAR),
-// converting all amounts to targetCurrency.
-func (s *ExpenseService) groupExpenses(expenses []dbmodel.Expense, groupBy string, targetCurrency string) []dto.ExpenseGroup {
-	if len(expenses) == 0 {
-		return []dto.ExpenseGroup{}
+// Groups uses DB-level GROUP BY (virtual bucket expression) to aggregate expenses into
+// time-bucket groups, paginating at the bucket level. Currency conversion uses live rates.
+func (s *ExpenseService) Groups(filter dto.GroupsFilter) (*dto.ExpenseGroupsResponse, error) {
+	total, aggRows, err := s.Repo.ListGroupsAggByFilter(filter)
+	if err != nil {
+		return nil, err
 	}
-	mode := strings.ToUpper(groupBy)
-	if mode != "DAY" && mode != "WEEK" && mode != "MONTH" && mode != "YEAR" {
-		return []dto.ExpenseGroup{}
+
+	originalCurrency := filter.OriginalCurrency
+	if originalCurrency == "" {
+		originalCurrency = "VND"
 	}
 
 	exchangeRates := currency.GetExchangeRateService().GetRates()
-	targetRate := exchangeRates[targetCurrency]
+	targetRate := exchangeRates[originalCurrency]
 	if targetRate == 0 {
 		targetRate = 1
 	}
@@ -176,99 +168,77 @@ func (s *ExpenseService) groupExpenses(expenses []dbmodel.Expense, groupBy strin
 		Income      float64
 		Expense     float64
 		TotalByType map[string]float64
-		WeekStart   time.Time // used for WEEK sorting/label
 	}
-	groups := make(map[string]*agg)
+	groupMap := make(map[string]*agg)
+	keyOrder := make([]string, 0)
 
-	for _, exp := range expenses {
-		var key string
-		var weekStart time.Time
-		t, err := time.Parse("2006-01-02", exp.Date)
-		if err != nil {
-			continue
+	for _, row := range aggRows {
+		if groupMap[row.Bucket] == nil {
+			groupMap[row.Bucket] = &agg{TotalByType: make(map[string]float64)}
+			keyOrder = append(keyOrder, row.Bucket)
 		}
-		switch mode {
-		case "DAY":
-			key = exp.Date
-		case "WEEK":
-			// ISO week: Monday-based
-			weekday := int(t.Weekday())
-			if weekday == 0 {
-				weekday = 7
-			}
-			weekStart = t.AddDate(0, 0, -(weekday - 1))
-			year, week := t.ISOWeek()
-			key = fmt.Sprintf("%d-W%02d", year, week)
-		case "MONTH":
-			if len(exp.Date) >= 7 {
-				key = exp.Date[:7]
-			}
-		case "YEAR":
-			if len(exp.Date) >= 4 {
-				key = exp.Date[:4]
-			}
-		}
-		if groups[key] == nil {
-			groups[key] = &agg{TotalByType: make(map[string]float64), WeekStart: weekStart}
-		}
-		rate := exchangeRates[exp.Currency]
+		rate := exchangeRates[row.Currency]
 		if rate == 0 {
 			rate = 1
 		}
-		amount := exp.Amount * rate / targetRate
-		groups[key].TotalByType[exp.Type] += amount
-		if exp.Kind == dbmodel.ExpenseKindIncome {
-			groups[key].Income += amount
+		converted := row.Total * rate / targetRate
+		groupMap[row.Bucket].TotalByType[row.Type] += converted
+		if row.Kind == string(dbmodel.ExpenseKindIncome) {
+			groupMap[row.Bucket].Income += converted
 		} else {
-			groups[key].Expense += amount
+			groupMap[row.Bucket].Expense += converted
 		}
 	}
 
-	keys := make([]string, 0, len(groups))
-	for k := range groups {
-		keys = append(keys, k)
-	}
-	sort.Slice(keys, func(i, j int) bool {
-		var ti, tj time.Time
-		switch mode {
-		case "DAY":
-			ti, _ = time.Parse("2006-01-02", keys[i])
-			tj, _ = time.Parse("2006-01-02", keys[j])
-		case "WEEK":
-			ti = groups[keys[i]].WeekStart
-			tj = groups[keys[j]].WeekStart
-		case "MONTH":
-			ti, _ = time.Parse("2006-01", keys[i])
-			tj, _ = time.Parse("2006-01", keys[j])
-		case "YEAR":
-			ti, _ = time.Parse("2006", keys[i])
-			tj, _ = time.Parse("2006", keys[j])
-		}
-		return ti.Before(tj)
-	})
-
-	result := make([]dto.ExpenseGroup, 0, len(keys))
-	for _, k := range keys {
-		g := groups[k]
-		label := k
-		switch mode {
-		case "DAY":
-			t, _ := time.Parse("2006-01-02", k)
-			label = t.Format("02 Jan")
-		case "WEEK":
-			label = g.WeekStart.Format("02 Jan")
-		case "MONTH":
-			t, _ := time.Parse("2006-01", k)
-			label = t.Format("Jan 2006")
-		}
-		result = append(result, dto.ExpenseGroup{
+	mode := strings.ToUpper(filter.GroupBy)
+	groups := make([]dto.ExpenseGroup, 0, len(keyOrder))
+	for _, k := range keyOrder {
+		g := groupMap[k]
+		groups = append(groups, dto.ExpenseGroup{
 			Key:         k,
-			Label:       label,
+			Label:       bucketLabel(k, mode),
 			Income:      g.Income,
 			Expense:     g.Expense,
 			Balance:     g.Income + g.Expense,
 			TotalByType: g.TotalByType,
 		})
 	}
-	return result
+
+	page := filter.Page
+	if page < 1 {
+		page = 1
+	}
+	pageSize := filter.PageSize
+	if pageSize <= 0 {
+		pageSize = 12
+	}
+
+	return &dto.ExpenseGroupsResponse{
+		Total:    int(total),
+		Page:     page,
+		PageSize: pageSize,
+		Groups:   groups,
+	}, nil
+}
+
+// bucketLabel converts a bucket key to a human-friendly label.
+func bucketLabel(key, mode string) string {
+	switch mode {
+	case "DAY":
+		if t, err := time.Parse("2006-01-02", key); err == nil {
+			return t.Format("02 Jan 2006")
+		}
+	case "WEEK":
+		// key is YYYY-MM-DD (Monday of the week)
+		if t, err := time.Parse("2006-01-02", key); err == nil {
+			return "W/o " + t.Format("02 Jan")
+		}
+	case "MONTH":
+		if t, err := time.Parse("2006-01", key); err == nil {
+			return t.Format("Jan 2006")
+		}
+	case "YEAR":
+		return key
+	}
+	return key
 }

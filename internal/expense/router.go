@@ -18,5 +18,6 @@ func RegisterExpenseRoutes(r *gin.Engine, a auth.IAuthService, service *ExpenseS
 		group.GET("/", handler.ListExpenses)
 		group.GET("/types", handler.GetUniqueTypes)
 		group.GET("/summary", handler.Summary)
+		group.GET("/groups", handler.Groups)
 	}
 }
