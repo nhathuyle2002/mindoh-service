@@ -7,6 +7,7 @@ import (
 	"mindoh-service/internal/db"
 	"mindoh-service/internal/expense"
 	"mindoh-service/internal/user"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -93,8 +94,12 @@ func main() {
 
 	r := gin.Default()
 	// Enable CORS
+	allowedOrigin := os.Getenv("ALLOWED_ORIGINS")
+	if allowedOrigin == "" {
+		allowedOrigin = "*"
+	}
 	r.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Authorization, Accept, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
