@@ -1,6 +1,8 @@
 package expense
 
 import (
+	"strings"
+
 	"gorm.io/gorm"
 )
 
@@ -54,7 +56,7 @@ func (r *ExpenseRepository) ListByFilter(filter ExpenseFilter) ([]Expense, error
 		db = db.Where("kind = ?", filter.Kind)
 	}
 	if filter.Type != "" {
-		db = db.Where("type = ?", filter.Type)
+		db = db.Where("type = ?", strings.ToLower(strings.TrimSpace(filter.Type)))
 	}
 	if len(filter.Currencies) > 0 {
 		db = db.Where("currency IN ?", filter.Currencies)

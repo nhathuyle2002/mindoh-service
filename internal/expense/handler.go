@@ -3,6 +3,7 @@ package expense
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"mindoh-service/common/utils"
@@ -63,7 +64,7 @@ func (h *ExpenseHandler) AddExpense(c *gin.Context) {
 		Amount:      req.Amount,
 		Currency:    req.Currency,
 		Kind:        req.Kind,
-		Type:        req.Type,
+		Type:        strings.ToLower(strings.TrimSpace(req.Type)),
 		Resource:    req.Resource,
 		Description: req.Description,
 		Date:        req.Date,
@@ -124,7 +125,7 @@ func (h *ExpenseHandler) UpdateExpense(c *gin.Context) {
 		expense.Currency = *req.Currency
 	}
 	if req.Type != nil {
-		expense.Type = *req.Type
+		expense.Type = strings.ToLower(strings.TrimSpace(*req.Type))
 	}
 	if req.Resource != nil {
 		expense.Resource = *req.Resource
