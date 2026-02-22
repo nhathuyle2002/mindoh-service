@@ -34,6 +34,16 @@ func (r *ExpenseRepository) Delete(id uint) error {
 	return r.DB.Delete(&Expense{}, id).Error
 }
 
+func (r *ExpenseRepository) GetUniqueTypes(userID uint) ([]string, error) {
+	var types []string
+	db := r.DB.Model(&Expense{}).Distinct("type").Where("type != ''").Order("type asc")
+	if userID != 0 {
+		db = db.Where("user_id = ?", userID)
+	}
+	err := db.Pluck("type", &types).Error
+	return types, err
+}
+
 func (r *ExpenseRepository) ListByFilter(filter ExpenseFilter) ([]Expense, error) {
 	var expenses []Expense
 	db := r.DB.Model(&Expense{})

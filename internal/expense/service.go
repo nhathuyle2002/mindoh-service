@@ -43,6 +43,10 @@ func (s *ExpenseService) GetExpenseByID(id uint) (*Expense, error) {
 	return s.Repo.GetByID(id)
 }
 
+func (s *ExpenseService) GetUniqueTypes(userID uint) ([]string, error) {
+	return s.Repo.GetUniqueTypes(userID)
+}
+
 func (s *ExpenseService) DeleteExpense(id uint) error {
 	return s.Repo.Delete(id)
 }

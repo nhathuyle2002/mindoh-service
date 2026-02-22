@@ -16,6 +16,7 @@ func RegisterExpenseRoutes(r *gin.Engine, a auth.IAuthService, service *ExpenseS
 		group.PUT("/:id", handler.UpdateExpense)
 		group.DELETE("/:id", handler.DeleteExpense)
 		group.GET("/", handler.ListExpenses)
+		group.GET("/types", handler.GetUniqueTypes)
 		group.GET("/summary", handler.Summary)
 	}
 }

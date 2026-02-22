@@ -279,4 +279,23 @@ func (h *ExpenseHandler) DeleteExpense(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Expense deleted successfully"})
 }
 
+// GetUniqueTypes godoc
+// @Summary Get unique expense types
+// @Description Get list of unique expense type values for the current user
+// @Tags expenses
+// @Produce json
+// @Success 200 {array} string "List of unique types"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security BearerAuth
+// @Router /expenses/types [get]
+func (h *ExpenseHandler) GetUniqueTypes(c *gin.Context) {
+	authCtx := auth.GetAuthContext(c)
+	types, err := h.Service.GetUniqueTypes(authCtx.UserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch types"})
+		return
+	}
+	c.JSON(http.StatusOK, types)
+}
+
 // Currency-related endpoints moved to currency package.
