@@ -55,9 +55,14 @@ func (s *UserService) CreateUser(user *dbmodel.User) error {
 	return nil
 }
 
-// UpdateUser updates an existing user
+// UpdateUser saves all fields of a user record (internal use only).
 func (s *UserService) UpdateUser(user *dbmodel.User) error {
 	return s.Repo.Update(user)
+}
+
+// UpdateProfileFields updates only the explicitly provided profile fields.
+func (s *UserService) UpdateProfileFields(id uint, fields map[string]interface{}) error {
+	return s.Repo.UpdateFields(id, fields)
 }
 
 // DeleteUser deletes a user by their ID

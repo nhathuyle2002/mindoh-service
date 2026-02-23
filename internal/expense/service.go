@@ -41,6 +41,19 @@ func (s *ExpenseService) UpdateExpense(expense *dbmodel.Expense) error {
 	return s.Repo.Update(expense)
 }
 
+// UpdateExpenseFields updates only the explicitly provided fields for an expense.
+// expense is the current DB state (used for validation of the final kind/amount).
+func (s *ExpenseService) UpdateExpenseFields(expense *dbmodel.Expense, fields map[string]interface{}) error {
+	// Validate final kind/amount sign
+	if expense.Kind == dbmodel.ExpenseKindExpense && expense.Amount > 0 {
+		return errors.New("expense amount must be negative")
+	}
+	if expense.Kind == dbmodel.ExpenseKindIncome && expense.Amount < 0 {
+		return errors.New("income amount must be positive")
+	}
+	return s.Repo.UpdateFields(expense.ID, fields)
+}
+
 func (s *ExpenseService) GetExpenseByID(id uint) (*dbmodel.Expense, error) {
 	return s.Repo.GetByID(id)
 }

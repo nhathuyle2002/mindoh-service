@@ -36,6 +36,10 @@ func (r *ExpenseRepository) Update(expense *dbmodel.Expense) error {
 	return r.DB.Save(expense).Error
 }
 
+func (r *ExpenseRepository) UpdateFields(id uint, fields map[string]interface{}) error {
+	return r.DB.Model(&dbmodel.Expense{}).Where("id = ?", id).Updates(fields).Error
+}
+
 func (r *ExpenseRepository) Delete(id uint) error {
 	return r.DB.Delete(&dbmodel.Expense{}, id).Error
 }

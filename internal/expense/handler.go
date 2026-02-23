@@ -116,35 +116,47 @@ func (h *ExpenseHandler) UpdateExpense(c *gin.Context) {
 		return
 	}
 
-	// Update fields if provided
+	// Build map of only provided fields; also apply to in-memory object for validation
+	fields := map[string]interface{}{}
 	if req.Amount != nil {
 		expense.Amount = *req.Amount
+		fields["amount"] = *req.Amount
 	}
 	if req.Kind != nil {
 		expense.Kind = dbmodel.ExpenseKind(*req.Kind)
+		fields["kind"] = string(*req.Kind)
 	}
 	if req.Currency != nil {
 		expense.Currency = *req.Currency
+		fields["currency"] = *req.Currency
 	}
 	if req.Type != nil {
-		expense.Type = strings.ToLower(strings.TrimSpace(*req.Type))
+		normalized := strings.ToLower(strings.TrimSpace(*req.Type))
+		expense.Type = normalized
+		fields["type"] = normalized
 	}
 	if req.Resource != nil {
 		expense.Resource = dbmodel.ExpenseResource(*req.Resource)
+		fields["resource"] = string(*req.Resource)
 	}
 	if req.Description != nil {
 		expense.Description = *req.Description
+		fields["description"] = *req.Description
 	}
 	if req.Date != nil {
-		// Validate date format
 		if _, err := time.Parse("2006-01-02", *req.Date); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format, expected YYYY-MM-DD"})
 			return
 		}
 		expense.Date = *req.Date
+		fields["date"] = *req.Date
+	}
+	if len(fields) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No fields to update"})
+		return
 	}
 
-	if err := h.Service.UpdateExpense(expense); err != nil {
+	if err := h.Service.UpdateExpenseFields(expense, fields); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

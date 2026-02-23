@@ -121,28 +121,33 @@ func (h *UserHandler) UpdateMe(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
-	user, err := h.userService.GetUserByID(authCtx.UserID)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-		return
-	}
+	fields := map[string]interface{}{}
 	if req.Email != "" {
-		user.Email = req.Email
+		fields["email"] = req.Email
 	}
 	if req.Name != "" {
-		user.Name = req.Name
+		fields["name"] = req.Name
 	}
 	if req.Birthdate != "" {
-		user.Birthdate = req.Birthdate
+		fields["birthdate"] = req.Birthdate
 	}
 	if req.Phone != "" {
-		user.Phone = req.Phone
+		fields["phone"] = req.Phone
 	}
 	if req.Address != "" {
-		user.Address = req.Address
+		fields["address"] = req.Address
 	}
-	if err := h.userService.UpdateUser(user); err != nil {
+	if len(fields) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No fields to update"})
+		return
+	}
+	if err := h.userService.UpdateProfileFields(authCtx.UserID, fields); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
+		return
+	}
+	user, err := h.userService.GetUserByID(authCtx.UserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch updated user"})
 		return
 	}
 	c.JSON(http.StatusOK, toUserResponse(user))
@@ -189,29 +194,34 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
-	user, err := h.userService.GetUserByID(utils.ParseUint(id))
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-		return
-	}
-	// Update fields
+	fields := map[string]interface{}{}
 	if req.Email != "" {
-		user.Email = req.Email
+		fields["email"] = req.Email
 	}
 	if req.Name != "" {
-		user.Name = req.Name
+		fields["name"] = req.Name
 	}
 	if req.Birthdate != "" {
-		user.Birthdate = req.Birthdate
+		fields["birthdate"] = req.Birthdate
 	}
 	if req.Phone != "" {
-		user.Phone = req.Phone
+		fields["phone"] = req.Phone
 	}
 	if req.Address != "" {
-		user.Address = req.Address
+		fields["address"] = req.Address
 	}
-	if err := h.userService.UpdateUser(user); err != nil {
+	if len(fields) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No fields to update"})
+		return
+	}
+	userID := utils.ParseUint(id)
+	if err := h.userService.UpdateProfileFields(userID, fields); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
+		return
+	}
+	user, err := h.userService.GetUserByID(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch updated user"})
 		return
 	}
 	c.JSON(http.StatusOK, toUserResponse(user))
