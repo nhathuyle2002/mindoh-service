@@ -4,6 +4,6 @@ db:
   port: ${POSTGRES_PORT}
   user: ${POSTGRES_USER}
   password: ${POSTGRES_PASSWORD}
-  name: ${POSTGRES_DB}
+  name: ${POSTGRES_NAME}
 jwt:
   secret: ${JWT_SECRET}
