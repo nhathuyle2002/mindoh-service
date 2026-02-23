@@ -9,7 +9,8 @@ Backend REST API for the Mindoh expense tracker, built with Go + Gin + GORM.
 - **GORM** — ORM (PostgreSQL)
 - **Supabase** — managed PostgreSQL (production)
 - **Railway** — deployment
-- **JWT** — authentication (HS256)
+- **JWT (HS256)** — authentication; token payload carries `username` and `role` (no numeric user ID)
+- **Brevo SMTP** — transactional email (verification, password reset)
 - **Swagger** — API docs (`/swagger/index.html`)
 
 ## Project Structure
@@ -18,35 +19,69 @@ Backend REST API for the Mindoh expense tracker, built with Go + Gin + GORM.
 mindoh-service/
 ├── config/           Config loader (config.yaml + env vars)
 ├── internal/
-│   ├── auth/         JWT middleware, role guard
+│   ├── auth/         JWT generation, middleware, role guard
 │   ├── currency/     Exchange rate endpoints
 │   ├── db/           GORM models
+│   ├── dto/          Request / response DTOs
 │   ├── expense/      Expense CRUD, summary, groups
-│   └── user/         Registration, login, profile
+│   └── user/         Registration, login, email verification, profile
 ├── common/utils/     Shared helpers
 ├── docs/             Swagger generated docs
 ├── Dockerfile
-├── railway.json
+├── start.sh          Dev runner (ensures correct cwd for .env loading)
 └── main.go
 ```
 
 ## API Endpoints
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | /api/register | | Register new user |
-| POST | /api/login | | Login, returns JWT |
-| GET | /api/users/me | JWT | Current user profile |
-| PUT | /api/users/:id | JWT | Update profile |
-| GET | /api/expenses/ | JWT | List expenses (paginated, filtered) |
-| POST | /api/expenses/ | JWT | Create expense |
-| PUT | /api/expenses/:id | JWT | Update expense |
-| DELETE | /api/expenses/:id | JWT | Delete expense |
-| GET | /api/expenses/summary | JWT | Totals by type and currency |
-| GET | /api/expenses/groups | JWT | Time-bucketed groups (day/week/month/year) |
-| GET | /api/expenses/types | JWT | Distinct types for current user |
-| GET | /api/currency/exchange-rates | | Latest exchange rates |
-| GET | /api/currency/currencies | | Available currencies |
+### Auth (public)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /api/register | Register new user |
+| POST | /api/login | Login — returns JWT + user profile |
+| GET | /api/verify-email?token=... | Verify email address |
+| POST | /api/resend-verification | Resend verification email |
+| POST | /api/forgot-password | Send password-reset email |
+| POST | /api/reset-password | Complete password reset with token |
+
+### Users (JWT required)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /api/users/me | Current user profile |
+| PUT | /api/users/me | Update current user profile |
+| POST | /api/users/change-password | Change password (requires current password) |
+| GET | /api/users/:id | Get user by ID |
+| PUT | /api/users/:id | Update user by ID |
+| DELETE | /api/users/:id | Delete user by ID |
+
+### Expenses (JWT required)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /api/expenses/ | List expenses (paginated, filtered) |
+| POST | /api/expenses/ | Create expense |
+| PUT | /api/expenses/:id | Update expense |
+| DELETE | /api/expenses/:id | Delete expense |
+| GET | /api/expenses/summary | Totals by type and currency |
+| GET | /api/expenses/groups | Time-bucketed groups (day/week/month/year) |
+| GET | /api/expenses/types | Distinct types for authenticated user |
+
+### Currency (JWT required)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /api/currency/exchange-rates | Latest exchange rates |
+| GET | /api/currency/currencies | Available currencies |
+
+### Admin (JWT + admin role)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /api/admin/users | Create user with explicit role |
+
+> **Note:** User responses never include a numeric `id`. The JWT payload stores `username` instead of a sequential user ID to avoid leaking enumerable identifiers.
 
 ## Test Account
 
@@ -69,10 +104,12 @@ A pre-seeded account is available for testing:
 ```sh
 git clone https://github.com/nhathuyle2002/mindoh-service
 cd mindoh-service
-cp .env.example .env   # fill in DB values
+cp .env.example .env   # fill in values
 go mod download
-go run main.go
+./start.sh             # or: go run main.go
 ```
+
+> Use `start.sh` so that `godotenv` loads `.env` from the correct working directory.
 
 Server: http://localhost:8080  
 Swagger: http://localhost:8080/swagger/index.html
@@ -89,6 +126,12 @@ Swagger: http://localhost:8080/swagger/index.html
 | POSTGRES_NAME | DB name | mindoh |
 | JWT_SECRET | JWT signing secret | your-secret |
 | ALLOWED_ORIGINS | CORS origins (comma-separated) | * |
+| SMTP_HOST | SMTP server host | smtp-relay.brevo.com |
+| SMTP_PORT | SMTP server port | 587 |
+| SMTP_USER | SMTP login username | user@smtp-brevo.com |
+| SMTP_PASSWORD | SMTP login password | your-smtp-key |
+| SMTP_FROM | Verified sender address | you@example.com |
+| APP_URL | Frontend base URL (for email links) | http://localhost:5173 |
 
 ## Docker
 
