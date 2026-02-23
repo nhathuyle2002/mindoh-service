@@ -24,6 +24,7 @@ func RegisterUserRoutes(r *gin.Engine, authService auth.IAuthService, userServic
 		protected.GET("/users/:id", handler.GetUser)
 		protected.PUT("/users/:id", handler.UpdateUser)
 		protected.DELETE("/users/:id", handler.DeleteUser)
+		protected.POST("/users/change-password", handler.ChangePassword)
 	}
 
 	// Admin-only routes

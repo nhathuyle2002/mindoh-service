@@ -67,3 +67,9 @@ type ResetPasswordRequest struct {
 	Token    string `json:"token"    binding:"required"`
 	Password string `json:"password" binding:"required,min=6"`
 }
+
+// ChangePasswordRequest is the request body for changing a password while authenticated.
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password" binding:"required"`
+	NewPassword     string `json:"new_password"     binding:"required,min=6"`
+}

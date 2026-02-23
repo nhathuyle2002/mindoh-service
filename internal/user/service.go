@@ -140,6 +140,24 @@ func (s *UserService) ForgotPassword(email string) error {
 	return nil
 }
 
+// ChangePassword verifies the current password then updates to the new one.
+func (s *UserService) ChangePassword(userID uint, currentPassword, newPassword string) error {
+	user, err := s.Repo.GetByID(userID)
+	if err != nil {
+		return fmt.Errorf("user not found")
+	}
+	if !CheckPasswordHash(currentPassword, user.PasswordHash) {
+		return fmt.Errorf("current password is incorrect")
+	}
+	hash, err := HashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+	return s.Repo.UpdateFields(userID, map[string]interface{}{
+		"password_hash": hash,
+	})
+}
+
 // ResetPassword validates the reset token and sets a new password.
 func (s *UserService) ResetPassword(token, newPassword string) error {
 	user, err := s.Repo.GetByPasswordResetToken(token)

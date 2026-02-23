@@ -213,6 +213,35 @@ func (h *UserHandler) AdminCreateUser(c *gin.Context) {
 	c.JSON(http.StatusCreated, toUserResponse(user))
 }
 
+// ChangePassword godoc
+// @Summary Change password
+// @Description Change the authenticated user's password
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param body body dto.ChangePasswordRequest true "Current and new password"
+// @Success 200 {object} map[string]interface{} "Password changed"
+// @Failure 400 {object} map[string]interface{} "Invalid request or wrong current password"
+// @Security BearerAuth
+// @Router /users/change-password [post]
+func (h *UserHandler) ChangePassword(c *gin.Context) {
+	authCtx := auth.GetAuthContext(c)
+	if authCtx.UserID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	var req dto.ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+	if err := h.userService.ChangePassword(authCtx.UserID, req.CurrentPassword, req.NewPassword); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Password changed successfully"})
+}
+
 // VerifyEmail godoc
 // @Summary Verify email
 // @Description Confirm a user's email address using the token sent after registration
