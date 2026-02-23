@@ -30,7 +30,7 @@ func NewExpenseHandler(service *ExpenseService) *ExpenseHandler {
 // @Accept json
 // @Produce json
 // @Param expense body dto.ExpenseCreateRequest true "Expense details"
-// @Success 201 {object} Expense "Expense created successfully"
+// @Success 201 {object} dto.ExpenseResponse "Expense created successfully"
 // @Failure 400 {object} map[string]interface{} "Invalid request"
 // @Failure 403 {object} map[string]interface{} "Forbidden"
 // @Failure 500 {object} map[string]interface{} "Internal server error"
@@ -86,7 +86,7 @@ func (h *ExpenseHandler) AddExpense(c *gin.Context) {
 // @Produce json
 // @Param id path int true "Expense ID"
 // @Param expense body dto.ExpenseUpdateRequest true "Expense update details"
-// @Success 200 {object} Expense "Expense updated successfully"
+// @Success 200 {object} dto.ExpenseResponse "Expense updated successfully"
 // @Failure 400 {object} map[string]interface{} "Invalid request"
 // @Failure 403 {object} map[string]interface{} "Forbidden"
 // @Failure 404 {object} map[string]interface{} "Expense not found"
@@ -164,7 +164,7 @@ func (h *ExpenseHandler) UpdateExpense(c *gin.Context) {
 // @Param to query string false "End date (YYYY-MM-DD)"
 // @Param order_by query string false "Column to order by: date, amount, type, kind, currency, created_at (default: date)"
 // @Param order_dir query string false "Order direction: asc or desc (default: desc)"
-// @Success 200 {object} ExpenseListResponse "List of expenses with count"
+// @Success 200 {object} dto.ExpenseListResponse "List of expenses with count"
 // @Failure 400 {object} map[string]interface{} "Invalid query parameters"
 // @Failure 403 {object} map[string]interface{} "Forbidden"
 // @Failure 500 {object} map[string]interface{} "Internal server error"

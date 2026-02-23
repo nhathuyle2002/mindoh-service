@@ -24,6 +24,111 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/admin/users": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin creates a user with a specified role",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Create user (admin)",
+                "parameters": [
+                    {
+                        "description": "User details",
+                        "name": "user",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.AdminCreateUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "User created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UserResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/currency/currencies": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "List supported currency codes",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "currency"
+                ],
+                "summary": "Get available currencies",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/currency/exchange-rates": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get exchange rates (base VND)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "currency"
+                ],
+                "summary": "Get exchange rates",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/expenses": {
             "get": {
                 "security": [
@@ -31,7 +136,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get list of expenses with optional filtering",
+                "description": "Get list of expenses with optional filtering and ordering",
                 "consumes": [
                     "application/json"
                 ],
@@ -56,9 +161,13 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "string",
-                        "description": "Expense type (food/salary/transport/entertainment)",
-                        "name": "type",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Expense types filter (food/salary/transport/entertainment) - accepts multiple",
+                        "name": "types",
                         "in": "query"
                     },
                     {
@@ -72,16 +181,25 @@ const docTemplate = `{
                         "description": "End date (YYYY-MM-DD)",
                         "name": "to",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Column to order by: date, amount, type, kind, currency, created_at (default: date)",
+                        "name": "order_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Order direction: asc or desc (default: desc)",
+                        "name": "order_dir",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "List of expenses",
+                        "description": "List of expenses with count",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/expense.Expense"
-                            }
+                            "$ref": "#/definitions/dto.ExpenseListResponse"
                         }
                     },
                     "400": {
@@ -131,7 +249,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/expense.ExpenseCreateRequest"
+                            "$ref": "#/definitions/dto.ExpenseCreateRequest"
                         }
                     }
                 ],
@@ -139,7 +257,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Expense created successfully",
                         "schema": {
-                            "$ref": "#/definitions/expense.Expense"
+                            "$ref": "#/definitions/dto.ExpenseResponse"
                         }
                     },
                     "400": {
@@ -151,6 +269,412 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/expenses/groups": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get paginated time-bucket groups (DAY/WEEK/MONTH/YEAR) for a filtered set of records.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "expenses"
+                ],
+                "summary": "Get expense groups",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by kind (expense/income)",
+                        "name": "kind",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Filter by types",
+                        "name": "types",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Filter by currencies",
+                        "name": "currencies",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Currency to express totals in (default: VND)",
+                        "name": "original_currency",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start date (YYYY-MM-DD)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (YYYY-MM-DD)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bucket size: DAY, WEEK, MONTH or YEAR",
+                        "name": "group_by",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort column: period (default), income, expense, balance",
+                        "name": "order_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort direction: desc (default), asc",
+                        "name": "order_dir",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (0 = all, default: 0)",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated expense groups",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ExpenseGroupsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/expenses/summary": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get totals (income, expense, balance) for a filtered set of records.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "expenses"
+                ],
+                "summary": "Get expense summary",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by kind (expense/income)",
+                        "name": "kind",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Filter by types",
+                        "name": "types",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Filter by currencies",
+                        "name": "currencies",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Currency to express totals in (default: VND)",
+                        "name": "original_currency",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start date (YYYY-MM-DD)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (YYYY-MM-DD)",
+                        "name": "to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Expense summary",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ExpenseSummary"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/expenses/types": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get list of unique expense type values for the current user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "expenses"
+                ],
+                "summary": "Get unique expense types",
+                "responses": {
+                    "200": {
+                        "description": "List of unique types",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/expenses/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update details of an existing expense",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "expenses"
+                ],
+                "summary": "Update an existing expense",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Expense ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Expense update details",
+                        "name": "expense",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ExpenseUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Expense updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ExpenseResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Expense not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete an expense by ID (user can only delete their own expenses)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "expenses"
+                ],
+                "summary": "Delete expense",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Expense ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Expense deleted successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid expense ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Expense not found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -186,7 +710,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.UserLoginRequest"
+                            "$ref": "#/definitions/dto.UserLoginRequest"
                         }
                     }
                 ],
@@ -194,8 +718,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Login successful",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/dto.LoginResponse"
                         }
                     },
                     "400": {
@@ -235,7 +758,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.UserRegisterRequest"
+                            "$ref": "#/definitions/dto.UserRegisterRequest"
                         }
                     }
                 ],
@@ -243,8 +766,7 @@ const docTemplate = `{
                     "201": {
                         "description": "User created successfully",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/dto.UserResponse"
                         }
                     },
                     "400": {
@@ -288,8 +810,7 @@ const docTemplate = `{
                     "200": {
                         "description": "User found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/dto.UserResponse"
                         }
                     },
                     "404": {
@@ -332,7 +853,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.UserUpdateRequest"
+                            "$ref": "#/definitions/dto.UserUpdateRequest"
                         }
                     }
                 ],
@@ -340,8 +861,7 @@ const docTemplate = `{
                     "200": {
                         "description": "User updated successfully",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/dto.UserResponse"
                         }
                     },
                     "400": {
@@ -406,14 +926,161 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "expense.Expense": {
+        "dto.AdminCreateUserRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "password",
+                "username"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "birthdate": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 6
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "role": {
+                    "description": "defaults to \"user\" if omitted",
+                    "type": "string",
+                    "enum": [
+                        "admin",
+                        "user"
+                    ]
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.CurrencySummary": {
+            "type": "object",
+            "properties": {
+                "total_balance": {
+                    "type": "number"
+                },
+                "total_expense": {
+                    "type": "number"
+                },
+                "total_income": {
+                    "type": "number"
+                }
+            }
+        },
+        "dto.ExpenseCreateRequest": {
             "type": "object",
             "properties": {
                 "amount": {
                     "type": "number"
                 },
-                "created_at": {
+                "currency": {
                     "type": "string"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "resource": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.ExpenseGroup": {
+            "type": "object",
+            "properties": {
+                "balance": {
+                    "type": "number"
+                },
+                "expense": {
+                    "type": "number"
+                },
+                "income": {
+                    "type": "number"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "total_by_type": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number",
+                        "format": "float64"
+                    }
+                }
+            }
+        },
+        "dto.ExpenseGroupsResponse": {
+            "type": "object",
+            "properties": {
+                "groups": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ExpenseGroup"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.ExpenseListResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ExpenseResponse"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.ExpenseResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
                 },
                 "currency": {
                     "type": "string"
@@ -428,22 +1095,12 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "kind": {
-                    "description": "expense or income",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/expense.ExpenseKind"
-                        }
-                    ]
+                    "type": "string"
+                },
+                "resource": {
+                    "type": "string"
                 },
                 "type": {
-                    "description": "e.g., food, salary, etc.",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/expense.ExpenseType"
-                        }
-                    ]
-                },
-                "updated_at": {
                     "type": "string"
                 },
                 "user_id": {
@@ -451,71 +1108,87 @@ const docTemplate = `{
                 }
             }
         },
-        "expense.ExpenseCreateRequest": {
+        "dto.ExpenseSummary": {
+            "type": "object",
+            "properties": {
+                "by_currency": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/dto.CurrencySummary"
+                    }
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "expense_count": {
+                    "type": "integer"
+                },
+                "income_count": {
+                    "type": "integer"
+                },
+                "total_balance": {
+                    "type": "number"
+                },
+                "total_by_type_expense": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number",
+                        "format": "float64"
+                    }
+                },
+                "total_by_type_income": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number",
+                        "format": "float64"
+                    }
+                },
+                "total_expense": {
+                    "type": "number"
+                },
+                "total_income": {
+                    "type": "number"
+                }
+            }
+        },
+        "dto.ExpenseUpdateRequest": {
             "type": "object",
             "properties": {
                 "amount": {
                     "type": "number"
                 },
                 "currency": {
-                    "description": "e.g., USD, EUR",
                     "type": "string"
                 },
                 "date": {
-                    "description": "Date is optional, if not provided, current time will be used",
                     "type": "string"
                 },
                 "description": {
                     "type": "string"
                 },
                 "kind": {
-                    "description": "expense or income",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/expense.ExpenseKind"
-                        }
-                    ]
+                    "type": "string"
+                },
+                "resource": {
+                    "type": "string"
                 },
                 "type": {
-                    "description": "e.g., food, salary, etc.",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/expense.ExpenseType"
-                        }
-                    ]
-                },
-                "user_id": {
-                    "type": "integer"
+                    "type": "string"
                 }
             }
         },
-        "expense.ExpenseKind": {
-            "type": "string",
-            "enum": [
-                "expense",
-                "income"
-            ],
-            "x-enum-varnames": [
-                "ExpenseKindExpense",
-                "ExpenseKindIncome"
-            ]
+        "dto.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "token": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/dto.UserResponse"
+                }
+            }
         },
-        "expense.ExpenseType": {
-            "type": "string",
-            "enum": [
-                "food",
-                "salary",
-                "transport",
-                "entertainment"
-            ],
-            "x-enum-varnames": [
-                "ExpenseTypeFood",
-                "ExpenseTypeSalary",
-                "ExpenseTypeTransport",
-                "ExpenseTypeEntertainment"
-            ]
-        },
-        "user.UserLoginRequest": {
+        "dto.UserLoginRequest": {
             "type": "object",
             "properties": {
                 "password": {
@@ -526,7 +1199,7 @@ const docTemplate = `{
                 }
             }
         },
-        "user.UserRegisterRequest": {
+        "dto.UserRegisterRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -558,7 +1231,36 @@ const docTemplate = `{
                 }
             }
         },
-        "user.UserUpdateRequest": {
+        "dto.UserResponse": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "birthdate": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.UserUpdateRequest": {
             "type": "object",
             "properties": {
                 "address": {

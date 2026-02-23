@@ -1,326 +1,114 @@
-# Mindoh Backend Service
+# mindoh-service
 
-This is the backend service for Mindoh, a personal growth application. It is built with Go, Gin, GORM, JWT authentication, and PostgreSQL. The service supports:
+Backend REST API for the Mindoh expense tracker, built with Go + Gin + GORM.
 
-- English vocabulary learning (words, flashcards, quizzes, progress tracking)
-- To-do task management (tasks, reminders)
-- Expenses & income tracking (transactions, categories, summaries)
-- Role-based access control (user/admin)
+## Tech Stack
 
-## Getting Started
-
-### Prerequisites
-- Go 1.21+
-- Docker & Docker Compose
-
-### Development
-
-1. Install dependencies:
-   ```sh
-   go mod tidy
-   ```
-2. Run the service:
-   ```sh
-   go run main.go
-   ```
-3. Health check:
-   Visit [http://localhost:8080/health](http://localhost:8080/health)
-
-4. **API Documentation:**
-   Visit [http://localhost:8080/swagger/index.html](http://localhost:8080/swagger/index.html) to view the interactive Swagger documentation.
-
-### Docker
-
-1. Build and start services:
-   ```sh
-   docker-compose up --build
-   ```
-
-## API Documentation
-
-The API documentation is available via Swagger UI at `/swagger/index.html` when the service is running.
-
-### Base URL
-```
-http://localhost:8080/api
-```
-
-### Authentication
-
-Most endpoints require Bearer token authentication. To use protected endpoints:
-
-1. Register a new user via `POST /api/register`
-2. Login via `POST /api/login` to get a JWT token
-3. Include the token in the Authorization header: `Bearer <your-jwt-token>`
-
-### Available Endpoints
-
-#### Health Check
-- `GET /health` - Check service health (no auth required)
-
-#### Authentication & Users
-
-##### Register User
-- **POST** `/api/register`
-- **Description:** Create a new user account
-- **Request Body:**
-  ```json
-  {
-    "username": "john_doe",
-    "email": "john@example.com",
-    "password": "password123",
-    "name": "John Doe",
-    "birthdate": "1990-01-01",
-    "phone": "+1234567890",
-    "address": "123 Main St, City, State"
-  }
-  ```
-- **Response:** `201 Created`
-  ```json
-  {
-    "user": {
-      "id": 1,
-      "username": "john_doe",
-      "email": "john@example.com",
-      "role": "user",
-      "name": "John Doe",
-      "birthdate": "1990-01-01",
-      "phone": "+1234567890",
-      "address": "123 Main St, City, State",
-      "created_at": "2025-07-14T10:30:00Z",
-      "updated_at": "2025-07-14T10:30:00Z"
-    }
-  }
-  ```
-
-##### Login User
-- **POST** `/api/login`
-- **Description:** Authenticate user and get JWT token
-- **Request Body:**
-  ```json
-  {
-    "username": "john_doe",
-    "password": "password123"
-  }
-  ```
-- **Response:** `200 OK`
-  ```json
-  {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "user": {
-      "id": 1,
-      "username": "john_doe",
-      "email": "john@example.com",
-      "role": "user",
-      "name": "John Doe"
-    }
-  }
-  ```
-
-##### Get User
-- **GET** `/api/users/{id}` 🔒
-- **Description:** Get user information by ID
-- **Headers:** `Authorization: Bearer <token>`
-- **Response:** `200 OK`
-  ```json
-  {
-    "user": {
-      "id": 1,
-      "username": "john_doe",
-      "email": "john@example.com",
-      "role": "user",
-      "name": "John Doe",
-      "birthdate": "1990-01-01",
-      "phone": "+1234567890",
-      "address": "123 Main St, City, State"
-    }
-  }
-  ```
-
-##### Update User
-- **PUT** `/api/users/{id}` 🔒
-- **Description:** Update user information
-- **Headers:** `Authorization: Bearer <token>`
-- **Request Body:**
-  ```json
-  {
-    "email": "newemail@example.com",
-    "name": "Updated Name",
-    "phone": "+0987654321"
-  }
-  ```
-- **Response:** `200 OK`
-  ```json
-  {
-    "user": {
-      "id": 1,
-      "username": "john_doe",
-      "email": "newemail@example.com",
-      "name": "Updated Name",
-      "phone": "+0987654321"
-    }
-  }
-  ```
-
-##### Delete User
-- **DELETE** `/api/users/{id}` 🔒
-- **Description:** Delete user account
-- **Headers:** `Authorization: Bearer <token>`
-- **Response:** `200 OK`
-  ```json
-  {
-    "message": "User deleted"
-  }
-  ```
-
-#### Expenses
-
-##### Create Expense
-- **POST** `/api/expenses` 🔒
-- **Description:** Create a new expense or income record
-- **Headers:** `Authorization: Bearer <token>`
-- **Request Body:**
-  ```json
-  {
-    "amount": 50.00,
-    "currency": "USD",
-    "kind": "expense",
-    "type": "food",
-    "description": "Lunch at restaurant",
-    "date": "2025-07-14T12:00:00Z"
-  }
-  ```
-- **Response:** `201 Created`
-  ```json
-  {
-    "id": 1,
-    "user_id": 1,
-    "amount": 50.00,
-    "currency": "USD",
-    "kind": "expense",
-    "type": "food",
-    "description": "Lunch at restaurant",
-    "date": "2025-07-14T12:00:00Z",
-    "created_at": "2025-07-14T10:30:00Z",
-    "updated_at": "2025-07-14T10:30:00Z"
-  }
-  ```
-
-##### List Expenses
-- **GET** `/api/expenses` 🔒
-- **Description:** Get list of expenses with optional filtering
-- **Headers:** `Authorization: Bearer <token>`
-- **Query Parameters:**
-  - `user_id` (int, optional): Filter by user ID
-  - `kind` (string, optional): Filter by kind (`expense` or `income`)
-  - `type` (string, optional): Filter by type (`food`, `salary`, `transport`, `entertainment`)
-  - `from` (string, optional): Start date (YYYY-MM-DD)
-  - `to` (string, optional): End date (YYYY-MM-DD)
-- **Example:** `GET /api/expenses?kind=expense&type=food&from=2025-07-01&to=2025-07-14`
-- **Response:** `200 OK`
-  ```json
-  [
-    {
-      "id": 1,
-      "user_id": 1,
-      "amount": 50.00,
-      "currency": "USD",
-      "kind": "expense",
-      "type": "food",
-      "description": "Lunch at restaurant",
-      "date": "2025-07-14T12:00:00Z",
-      "created_at": "2025-07-14T10:30:00Z",
-      "updated_at": "2025-07-14T10:30:00Z"
-    }
-  ]
-  ```
-
-##### Daily Expense Summary
-- **GET** `/api/expenses/summary/day` 🔒
-- **Description:** Get total expenses for a specific day
-- **Headers:** `Authorization: Bearer <token>`
-- **Query Parameters:**
-  - `date` (string, required): Date in YYYY-MM-DD format
-  - `kind` (string, optional): Filter by kind (`expense` or `income`)
-  - `type` (string, optional): Filter by type (`food`, `salary`, `transport`, `entertainment`)
-- **Example:** `GET /api/expenses/summary/day?date=2025-07-14&kind=expense`
-- **Response:** `200 OK`
-  ```json
-  {
-    "total": 150.75
-  }
-  ```
-
-### Data Types
-
-#### Expense Kinds
-- `expense` - Money spent
-- `income` - Money received
-
-#### Expense Types
-- `food` - Food and dining
-- `salary` - Salary and wages
-- `transport` - Transportation costs
-- `entertainment` - Entertainment expenses
-
-#### User Roles
-- `user` - Regular user (default)
-- `admin` - Administrator
-
-### Error Responses
-
-All endpoints may return the following error responses:
-
-- **400 Bad Request**
-  ```json
-  {
-    "error": "Invalid request"
-  }
-  ```
-
-- **401 Unauthorized**
-  ```json
-  {
-    "error": "Invalid credentials"
-  }
-  ```
-
-- **403 Forbidden**
-  ```json
-  {
-    "error": "You can only access your own data"
-  }
-  ```
-
-- **404 Not Found**
-  ```json
-  {
-    "error": "Resource not found"
-  }
-  ```
-
-- **500 Internal Server Error**
-  ```json
-  {
-    "error": "Internal server error"
-  }
-  ```
-
-### Regenerating API Documentation
-
-If you make changes to the API endpoints, regenerate the Swagger documentation:
-
-```sh
-swag init
-```
+- **Go 1.24** — language
+- **Gin** — HTTP framework
+- **GORM** — ORM (PostgreSQL)
+- **Supabase** — managed PostgreSQL (production)
+- **Railway** — deployment
+- **JWT** — authentication (HS256)
+- **Swagger** — API docs (`/swagger/index.html`)
 
 ## Project Structure
-- `main.go`: Entry point
-- `internal/`: Feature modules (vocab, tasks, finance, auth, user)
-- `config/`: Configuration files
-- `pkg/`: Shared utilities
-- `docs/`: Auto-generated Swagger documentation
 
----
+```
+mindoh-service/
+├── config/           Config loader (config.yaml + env vars)
+├── internal/
+│   ├── auth/         JWT middleware, role guard
+│   ├── currency/     Exchange rate endpoints
+│   ├── db/           GORM models
+│   ├── expense/      Expense CRUD, summary, groups
+│   └── user/         Registration, login, profile
+├── common/utils/     Shared helpers
+├── docs/             Swagger generated docs
+├── Dockerfile
+├── railway.json
+└── main.go
+```
 
-For more details, see inline comments and documentation in each package.
+## API Endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | /api/register | | Register new user |
+| POST | /api/login | | Login, returns JWT |
+| GET | /api/users/me | JWT | Current user profile |
+| PUT | /api/users/:id | JWT | Update profile |
+| GET | /api/expenses/ | JWT | List expenses (paginated, filtered) |
+| POST | /api/expenses/ | JWT | Create expense |
+| PUT | /api/expenses/:id | JWT | Update expense |
+| DELETE | /api/expenses/:id | JWT | Delete expense |
+| GET | /api/expenses/summary | JWT | Totals by type and currency |
+| GET | /api/expenses/groups | JWT | Time-bucketed groups (day/week/month/year) |
+| GET | /api/expenses/types | JWT | Distinct types for current user |
+| GET | /api/currency/exchange-rates | | Latest exchange rates |
+| GET | /api/currency/currencies | | Available currencies |
+
+## Test Account
+
+A pre-seeded account is available for testing:
+
+| Field | Value |
+|---|---|
+| Username | `test111` |
+| Password | `nvmQF6F2scnn..u` |
+
+## Local Development
+
+### Prerequisites
+
+- Go 1.24+
+- PostgreSQL
+
+### Run
+
+```sh
+git clone https://github.com/nhathuyle2002/mindoh-service
+cd mindoh-service
+cp .env.example .env   # fill in DB values
+go mod download
+go run main.go
+```
+
+Server: http://localhost:8080  
+Swagger: http://localhost:8080/swagger/index.html
+
+### Environment Variables
+
+| Variable | Description | Example |
+|---|---|---|
+| APP_ENV | `dev` or `prod` | dev |
+| POSTGRES_HOST | DB host | localhost |
+| POSTGRES_PORT | DB port | 5431 |
+| POSTGRES_USER | DB user | mindoh |
+| POSTGRES_PASSWORD | DB password | 1234 |
+| POSTGRES_NAME | DB name | mindoh |
+| JWT_SECRET | JWT signing secret | your-secret |
+| ALLOWED_ORIGINS | CORS origins (comma-separated) | * |
+
+## Docker
+
+```sh
+docker build -t mindoh-service .
+
+docker run -d \
+  --name mindoh-backend \
+  -p 8080:8080 \
+  --env-file .env.docker \
+  --add-host=host.docker.internal:host-gateway \
+  mindoh-service
+```
+
+`.env.docker` is the same as `.env` but with `POSTGRES_HOST=host.docker.internal`.
+
+## Deployment (Railway)
+
+1. Connect the repo to Railway — Dockerfile is auto-detected via `railway.json`
+2. Set env vars in the Railway dashboard (no quotes around values)
+3. Railway injects `PORT` automatically
+
+Production URL: https://mindoh-service-production.up.railway.app
