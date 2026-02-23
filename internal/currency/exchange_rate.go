@@ -2,8 +2,8 @@ package currency
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -47,29 +47,32 @@ func GetExchangeRateService() *ExchangeRateService {
 }
 
 func (e *ExchangeRateService) fetchRates() {
-	url := "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/vnd.json"
-	resp, err := http.Get(url)
+	primaryURL := "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/vnd.json"
+	fallbackURL := "https://latest.currency-api.pages.dev/v1/currencies/vnd.json"
+
+	slog.Info("fetching exchange rates", "url", primaryURL)
+	resp, err := http.Get(primaryURL)
 	if err != nil {
-		url = "https://latest.currency-api.pages.dev/v1/currencies/vnd.json"
-		resp, err = http.Get(url)
+		slog.Warn("primary exchange rate URL failed, trying fallback", "error", err, "url", fallbackURL)
+		resp, err = http.Get(fallbackURL)
 		if err != nil {
-			fmt.Printf("Failed to fetch exchange rates: %v\n", err)
+			slog.Error("failed to fetch exchange rates", "error", err)
 			return
 		}
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Exchange rate API status: %d\n", resp.StatusCode)
+		slog.Error("exchange rate API returned non-200", "status", resp.StatusCode)
 		return
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Printf("Failed reading exchange rate body: %v\n", err)
+		slog.Error("failed reading exchange rate body", "error", err)
 		return
 	}
 	var apiResp ExchangeRateAPIResponse
 	if err := json.Unmarshal(body, &apiResp); err != nil {
-		fmt.Printf("Failed parsing exchange rate JSON: %v\n", err)
+		slog.Error("failed parsing exchange rate JSON", "error", err)
 		return
 	}
 	newRates := make(map[string]float64)
@@ -86,7 +89,7 @@ func (e *ExchangeRateService) fetchRates() {
 	e.rates = newRates
 	e.lastUpdate = time.Now()
 	e.mu.Unlock()
-	fmt.Printf("Exchange rates updated: USD=%.2f VND EUR=%.2f VND\n", newRates["USD"], newRates["EUR"])
+	slog.Info("exchange rates updated", "USD_to_VND", newRates["USD"], "EUR_to_VND", newRates["EUR"])
 }
 
 // GetRates returns a copy of current rates (to VND)

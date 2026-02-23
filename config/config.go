@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"regexp"
 
@@ -51,6 +52,16 @@ func LoadConfig() *Config {
 	if err := yaml.Unmarshal([]byte(expanded), cfg); err != nil {
 		panic(fmt.Sprintf("Failed to parse config.yaml: %v", err))
 	}
+	slog.Info("config loaded",
+		"env", cfg.Env,
+		"db_host", cfg.DB.Host,
+		"db_port", cfg.DB.Port,
+		"db_name", cfg.DB.Name,
+		"smtp_host", cfg.SMTP.Host,
+		"smtp_port", cfg.SMTP.Port,
+		"smtp_from", cfg.SMTP.From,
+		"app_url", cfg.App.URL,
+	)
 	return cfg
 }
 

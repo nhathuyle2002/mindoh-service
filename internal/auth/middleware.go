@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"log/slog"
 	"mindoh-service/config"
 	"net/http"
 	"strings"
@@ -28,6 +29,7 @@ func (a *AuthService) AuthMiddleware(resolveUser func(username string) (uint, er
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			slog.Warn("missing or invalid authorization header", "path", c.Request.URL.Path)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing or invalid Authorization header"})
 			c.Abort()
 			return
@@ -35,12 +37,14 @@ func (a *AuthService) AuthMiddleware(resolveUser func(username string) (uint, er
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		username, role, err := a.ParseAndValidateJWT(tokenString)
 		if err != nil {
+			slog.Warn("invalid or expired JWT", "path", c.Request.URL.Path, "error", err)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
 			c.Abort()
 			return
 		}
 		userID, err := resolveUser(username)
 		if err != nil {
+			slog.Warn("JWT username not found in DB", "username", username, "error", err)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 			c.Abort()
 			return

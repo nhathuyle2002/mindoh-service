@@ -6,6 +6,7 @@ import (
 	"mindoh-service/internal/currency"
 	"mindoh-service/internal/db"
 	"mindoh-service/internal/expense"
+	"mindoh-service/internal/logger"
 	"mindoh-service/internal/mailer"
 	"mindoh-service/internal/user"
 	"os"
@@ -57,6 +58,10 @@ func NewService() *Services {
 	// Load configuration
 	cfg := config.LoadConfig()
 
+	// Init logger (after config so we know the environment)
+	logger.Init(cfg.Env)
+	logger.L.Info("starting mindoh-service", "env", cfg.Env)
+
 	// Connect to database
 	db.ConnectDatabase(cfg)
 	dbInstance := db.GetDB()
@@ -67,8 +72,10 @@ func NewService() *Services {
 	// Initialize mailer
 	var mailSvc mailer.IMailer
 	if cfg.SMTP.Host != "" {
+		logger.L.Info("mailer configured", "host", cfg.SMTP.Host, "port", cfg.SMTP.Port, "from", cfg.SMTP.From)
 		mailSvc = mailer.NewMailer(cfg.SMTP.Host, cfg.SMTP.Port, cfg.SMTP.Username, cfg.SMTP.Password, cfg.SMTP.From)
 	} else {
+		logger.L.Warn("SMTP not configured, using noop mailer")
 		mailSvc = &mailer.NoopMailer{}
 	}
 

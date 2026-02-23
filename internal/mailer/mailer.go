@@ -3,6 +3,7 @@ package mailer
 import (
 	"crypto/tls"
 	"fmt"
+	"log/slog"
 	"net/smtp"
 	"strings"
 )
@@ -29,6 +30,7 @@ func NewMailer(host string, port int, username, password, from string) *Mailer {
 
 // Send sends an HTML email.
 func (m *Mailer) Send(to, subject, htmlBody string) error {
+	slog.Info("sending email", "to", to, "subject", subject, "smtp_host", m.Host, "smtp_port", m.Port)
 	addr := fmt.Sprintf("%s:%d", m.Host, m.Port)
 
 	headers := strings.Join([]string{
@@ -91,6 +93,6 @@ type IMailer interface {
 type NoopMailer struct{}
 
 func (n *NoopMailer) Send(to, subject, htmlBody string) error {
-	fmt.Printf("[mailer] (noop) to=%s subject=%s\n", to, subject)
+	slog.Debug("[mailer] noop", "to", to, "subject", subject)
 	return nil
 }

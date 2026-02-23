@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"time"
 
 	dbmodel "mindoh-service/internal/db"
@@ -197,7 +198,7 @@ func (s *UserService) sendVerifyEmail(to, token string) {
 <p>This link expires in 24 hours.</p>
 `, link, link, link)
 	if err := s.Mailer.Send(to, "Verify your Mindoh email", html); err != nil {
-		fmt.Printf("[mailer] failed to send verification email to %s: %v\n", to, err)
+		slog.Error("failed to send verification email", "to", to, "error", err)
 	}
 }
 
@@ -211,6 +212,6 @@ func (s *UserService) sendPasswordResetEmail(to, token string) {
 <p>This link expires in 1 hour. If you did not request a password reset, you can safely ignore this email.</p>
 `, link, link, link)
 	if err := s.Mailer.Send(to, "Reset your Mindoh password", html); err != nil {
-		fmt.Printf("[mailer] failed to send password reset email to %s: %v\n", to, err)
+		slog.Error("failed to send password reset email", "to", to, "error", err)
 	}
 }

@@ -1,7 +1,7 @@
 package db
 
 import (
-	"log"
+	"log/slog"
 	"mindoh-service/config"
 
 	"gorm.io/driver/postgres"
@@ -12,16 +12,21 @@ var DB *gorm.DB
 
 func ConnectDatabase(cfg *config.Config) {
 	dsn := cfg.GetDSN()
+	slog.Info("connecting to database", "host", cfg.DB.Host, "port", cfg.DB.Port, "name", cfg.DB.Name)
 	database, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		slog.Error("failed to connect to database", "error", err)
+		panic("database connection failed")
 	}
 	DB = database
+	slog.Info("database connected")
 
 	// Auto-migrate models
 	if err := DB.AutoMigrate(&User{}, &Expense{}); err != nil {
-		log.Fatalf("Failed to migrate database: %v", err)
+		slog.Error("failed to migrate database", "error", err)
+		panic("database migration failed")
 	}
+	slog.Info("database migration ok")
 }
 
 func GetDB() *gorm.DB {
