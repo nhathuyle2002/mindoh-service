@@ -23,6 +23,7 @@ func RegisterUserRoutes(r *gin.Engine, authService auth.IAuthService, userServic
 	{
 		protected.GET("/users/me", handler.GetMe)
 		protected.PUT("/users/me", handler.UpdateMe)
+		protected.PUT("/users/me/email", handler.UpdateMyEmail)
 		protected.GET("/users/:id", handler.GetUser)
 		protected.PUT("/users/:id", handler.UpdateUser)
 		protected.DELETE("/users/:id", handler.DeleteUser)
@@ -34,5 +35,6 @@ func RegisterUserRoutes(r *gin.Engine, authService auth.IAuthService, userServic
 	admin.Use(authService.AuthMiddleware(resolveUser), authService.RoleGuard(auth.RoleAdmin))
 	{
 		admin.POST("/users", handler.AdminCreateUser)
+		admin.PUT("/users/:id/email", handler.UpdateUserEmail)
 	}
 }

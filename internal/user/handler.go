@@ -122,9 +122,6 @@ func (h *UserHandler) UpdateMe(c *gin.Context) {
 		return
 	}
 	fields := map[string]interface{}{}
-	if req.Email != "" {
-		fields["email"] = req.Email
-	}
 	if req.Name != "" {
 		fields["name"] = req.Name
 	}
@@ -143,6 +140,37 @@ func (h *UserHandler) UpdateMe(c *gin.Context) {
 	}
 	if err := h.userService.UpdateProfileFields(authCtx.UserID, fields); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
+		return
+	}
+	user, err := h.userService.GetUserByID(authCtx.UserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch updated user"})
+		return
+	}
+	c.JSON(http.StatusOK, toUserResponse(user))
+}
+
+// UpdateMyEmail godoc
+// @Summary Update current user's email
+// @Description Change email for the authenticated user — resets verification and sends a new verification email
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param body body dto.UpdateEmailRequest true "New email"
+// @Success 200 {object} dto.UserResponse "Email updated"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security BearerAuth
+// @Router /users/me/email [put]
+func (h *UserHandler) UpdateMyEmail(c *gin.Context) {
+	authCtx := auth.GetAuthContext(c)
+	var req dto.UpdateEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or missing email"})
+		return
+	}
+	if err := h.userService.UpdateEmail(authCtx.UserID, req.Email); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update email"})
 		return
 	}
 	user, err := h.userService.GetUserByID(authCtx.UserID)
@@ -195,9 +223,6 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		return
 	}
 	fields := map[string]interface{}{}
-	if req.Email != "" {
-		fields["email"] = req.Email
-	}
 	if req.Name != "" {
 		fields["name"] = req.Name
 	}
@@ -217,6 +242,44 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	userID := utils.ParseUint(id)
 	if err := h.userService.UpdateProfileFields(userID, fields); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
+		return
+	}
+	user, err := h.userService.GetUserByID(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch updated user"})
+		return
+	}
+	c.JSON(http.StatusOK, toUserResponse(user))
+}
+
+// UpdateUserEmail godoc
+// @Summary Update email for a user (admin)
+// @Description Admin changes any user's email — resets verification and sends a new verification email
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Param id path string true "User ID"
+// @Param body body dto.UpdateEmailRequest true "New email"
+// @Success 200 {object} dto.UserResponse "Email updated"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 404 {object} map[string]interface{} "User not found"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security BearerAuth
+// @Router /admin/users/{id}/email [put]
+func (h *UserHandler) UpdateUserEmail(c *gin.Context) {
+	id := c.Param("id")
+	var req dto.UpdateEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or missing email"})
+		return
+	}
+	userID := utils.ParseUint(id)
+	if _, err := h.userService.GetUserByID(userID); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+	if err := h.userService.UpdateEmail(userID, req.Email); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update email"})
 		return
 	}
 	user, err := h.userService.GetUserByID(userID)

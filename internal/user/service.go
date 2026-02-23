@@ -65,6 +65,24 @@ func (s *UserService) UpdateProfileFields(id uint, fields map[string]interface{}
 	return s.Repo.UpdateFields(id, fields)
 }
 
+// UpdateEmail changes a user's email, resets verification status, and sends a new verification email.
+func (s *UserService) UpdateEmail(id uint, newEmail string) error {
+	token, err := generateToken()
+	if err != nil {
+		return err
+	}
+	if err := s.Repo.UpdateFields(id, map[string]interface{}{
+		"email":               newEmail,
+		"is_email_verified":   false,
+		"email_verify_token":  token,
+		"email_verify_expiry": time.Now().Add(24 * time.Hour),
+	}); err != nil {
+		return err
+	}
+	go s.sendVerifyEmail(newEmail, token)
+	return nil
+}
+
 // DeleteUser deletes a user by their ID
 func (s *UserService) DeleteUser(id uint) error {
 	return s.Repo.Delete(id)

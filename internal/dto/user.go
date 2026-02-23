@@ -31,11 +31,15 @@ type UserLoginRequest struct {
 
 // UserUpdateRequest is the request body for updating user profile.
 type UserUpdateRequest struct {
-	Email     string `json:"email"`
 	Name      string `json:"name,omitempty"`
 	Birthdate string `json:"birthdate,omitempty"`
 	Phone     string `json:"phone,omitempty"`
 	Address   string `json:"address,omitempty"`
+}
+
+// UpdateEmailRequest is the request body for changing a user's email.
+type UpdateEmailRequest struct {
+	Email string `json:"email" binding:"required,email"`
 }
 
 // UserResponse is the public-facing user representation (no password hash).
