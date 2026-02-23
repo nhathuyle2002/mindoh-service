@@ -6,11 +6,11 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func (s *AuthService) GenerateJWT(userID uint, role Role) (string, error) {
+func (s *AuthService) GenerateJWT(username string, role Role) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 	claims := &Claims{
-		UserID: userID,
-		Role:   role,
+		Username: username,
+		Role:     role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 		},
@@ -19,13 +19,13 @@ func (s *AuthService) GenerateJWT(userID uint, role Role) (string, error) {
 	return token.SignedString([]byte(s.cfg.JWT.Secret))
 }
 
-func (s *AuthService) ParseAndValidateJWT(tokenString string) (uint, Role, error) {
+func (s *AuthService) ParseAndValidateJWT(tokenString string) (string, Role, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 		return []byte(s.cfg.JWT.Secret), nil
 	})
 	if err != nil || !token.Valid {
-		return 0, "", err
+		return "", "", err
 	}
-	return claims.UserID, claims.Role, nil
+	return claims.Username, claims.Role, nil
 }

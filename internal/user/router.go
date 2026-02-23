@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterUserRoutes(r *gin.Engine, authService auth.IAuthService, userService *UserService) {
+func RegisterUserRoutes(r *gin.Engine, authService auth.IAuthService, userService *UserService, resolveUser func(string) (uint, error)) {
 	handler := NewUserHandler(authService, userService)
 
 	// Public routes
@@ -19,8 +19,10 @@ func RegisterUserRoutes(r *gin.Engine, authService auth.IAuthService, userServic
 
 	// Protected routes
 	protected := r.Group("/api")
-	protected.Use(authService.AuthMiddleware())
+	protected.Use(authService.AuthMiddleware(resolveUser))
 	{
+		protected.GET("/users/me", handler.GetMe)
+		protected.PUT("/users/me", handler.UpdateMe)
 		protected.GET("/users/:id", handler.GetUser)
 		protected.PUT("/users/:id", handler.UpdateUser)
 		protected.DELETE("/users/:id", handler.DeleteUser)
@@ -29,7 +31,7 @@ func RegisterUserRoutes(r *gin.Engine, authService auth.IAuthService, userServic
 
 	// Admin-only routes
 	admin := r.Group("/api/admin")
-	admin.Use(authService.AuthMiddleware(), authService.RoleGuard(auth.RoleAdmin))
+	admin.Use(authService.AuthMiddleware(resolveUser), authService.RoleGuard(auth.RoleAdmin))
 	{
 		admin.POST("/users", handler.AdminCreateUser)
 	}

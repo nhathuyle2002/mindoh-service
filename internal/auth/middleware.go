@@ -13,10 +13,10 @@ type AuthService struct {
 }
 
 type IAuthService interface {
-	AuthMiddleware() gin.HandlerFunc
+	AuthMiddleware(resolveUser func(username string) (uint, error)) gin.HandlerFunc
 	RoleGuard(roles ...Role) gin.HandlerFunc
-	GenerateJWT(userID uint, role Role) (string, error)
-	ParseAndValidateJWT(tokenString string) (uint, Role, error)
+	GenerateJWT(username string, role Role) (string, error)
+	ParseAndValidateJWT(tokenString string) (string, Role, error)
 }
 
 func NewAuthService(cfg *config.Config) *AuthService {
@@ -24,7 +24,7 @@ func NewAuthService(cfg *config.Config) *AuthService {
 }
 
 // AuthMiddleware checks JWT authentication and sets user info in context
-func (a *AuthService) AuthMiddleware() gin.HandlerFunc {
+func (a *AuthService) AuthMiddleware(resolveUser func(username string) (uint, error)) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
@@ -33,15 +33,22 @@ func (a *AuthService) AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		userID, role, err := a.ParseAndValidateJWT(tokenString)
+		username, role, err := a.ParseAndValidateJWT(tokenString)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
 			c.Abort()
 			return
 		}
+		userID, err := resolveUser(username)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+			c.Abort()
+			return
+		}
 		authCtx := AuthContext{
-			UserID: userID,
-			Role:   role,
+			UserID:   userID,
+			Username: username,
+			Role:     role,
 		}
 		c.Set("auth", authCtx)
 		c.Next()

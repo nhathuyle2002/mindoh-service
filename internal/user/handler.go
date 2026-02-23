@@ -77,12 +77,75 @@ func (h *UserHandler) Login(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
-	token, err := h.authService.GenerateJWT(user.ID, user.Role)
+	token, err := h.authService.GenerateJWT(user.Username, user.Role)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
 	c.JSON(http.StatusOK, dto.LoginResponse{Token: token, User: toUserResponse(user)})
+}
+
+// GetMe godoc
+// @Summary Get current user
+// @Description Get the authenticated user's information
+// @Tags users
+// @Produce json
+// @Success 200 {object} dto.UserResponse "User found"
+// @Security BearerAuth
+// @Router /users/me [get]
+func (h *UserHandler) GetMe(c *gin.Context) {
+	authCtx := auth.GetAuthContext(c)
+	user, err := h.userService.GetUserByID(authCtx.UserID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+	c.JSON(http.StatusOK, toUserResponse(user))
+}
+
+// UpdateMe godoc
+// @Summary Update current user
+// @Description Update the authenticated user's information
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param user body dto.UserUpdateRequest true "User update details"
+// @Success 200 {object} dto.UserResponse "User updated successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Security BearerAuth
+// @Router /users/me [put]
+func (h *UserHandler) UpdateMe(c *gin.Context) {
+	authCtx := auth.GetAuthContext(c)
+	var req dto.UserUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+	user, err := h.userService.GetUserByID(authCtx.UserID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+	if req.Email != "" {
+		user.Email = req.Email
+	}
+	if req.Name != "" {
+		user.Name = req.Name
+	}
+	if req.Birthdate != "" {
+		user.Birthdate = req.Birthdate
+	}
+	if req.Phone != "" {
+		user.Phone = req.Phone
+	}
+	if req.Address != "" {
+		user.Address = req.Address
+	}
+	if err := h.userService.UpdateUser(user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
+		return
+	}
+	c.JSON(http.StatusOK, toUserResponse(user))
 }
 
 // GetUser godoc

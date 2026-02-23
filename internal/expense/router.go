@@ -6,11 +6,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterExpenseRoutes(r *gin.Engine, a auth.IAuthService, service *ExpenseService) {
+func RegisterExpenseRoutes(r *gin.Engine, a auth.IAuthService, service *ExpenseService, resolveUser func(string) (uint, error)) {
 	handler := NewExpenseHandler(service)
 
 	group := r.Group("/api/expenses")
-	group.Use(a.AuthMiddleware())
+	group.Use(a.AuthMiddleware(resolveUser))
 	{
 		group.POST("/", handler.AddExpense)
 		group.PUT("/:id", handler.UpdateExpense)

@@ -89,12 +89,19 @@ func NewService() *Services {
 }
 
 func RegisterRoutes(r *gin.Engine, s *Services) {
+	resolveUser := func(username string) (uint, error) {
+		u, err := s.UserService.Repo.GetByUsername(username)
+		if err != nil {
+			return 0, err
+		}
+		return u.ID, nil
+	}
 	// Register user routes
-	user.RegisterUserRoutes(r, s.AuthService, s.UserService)
+	user.RegisterUserRoutes(r, s.AuthService, s.UserService, resolveUser)
 	// Register expense routes
-	expense.RegisterExpenseRoutes(r, s.AuthService, s.ExpenseService)
+	expense.RegisterExpenseRoutes(r, s.AuthService, s.ExpenseService, resolveUser)
 	// Register currency routes
-	currency.RegisterCurrencyRoutes(r, s.AuthService)
+	currency.RegisterCurrencyRoutes(r, s.AuthService, resolveUser)
 }
 
 func main() {

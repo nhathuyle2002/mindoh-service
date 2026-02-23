@@ -12,12 +12,13 @@ const (
 )
 
 type Claims struct {
-	UserID uint `json:"user_id"`
-	Role   Role `json:"role"`
+	Username string `json:"username"`
+	Role     Role   `json:"role"`
 	jwt.RegisteredClaims
 }
 
 type AuthContext struct {
-	UserID uint `json:"user_id"`
-	Role   Role `json:"role"`
+	UserID   uint
+	Username string
+	Role     Role
 }
