@@ -19,6 +19,16 @@ type Config struct {
 	JWT struct {
 		Secret string `yaml:"secret"`
 	} `yaml:"jwt"`
+	SMTP struct {
+		Host     string `yaml:"host"`
+		Port     int    `yaml:"port"`
+		Username string `yaml:"username"`
+		Password string `yaml:"password"`
+		From     string `yaml:"from"`
+	} `yaml:"smtp"`
+	App struct {
+		URL string `yaml:"url"` // Frontend base URL for email links
+	} `yaml:"app"`
 	Env string `yaml:"env"` // Environment: dev or prod
 }
 

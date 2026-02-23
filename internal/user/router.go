@@ -12,6 +12,10 @@ func RegisterUserRoutes(r *gin.Engine, authService auth.IAuthService, userServic
 	// Public routes
 	r.POST("/api/register", handler.Register)
 	r.POST("/api/login", handler.Login)
+	r.GET("/api/verify-email", handler.VerifyEmail)
+	r.POST("/api/resend-verification", handler.ResendVerification)
+	r.POST("/api/forgot-password", handler.ForgotPassword)
+	r.POST("/api/reset-password", handler.ResetPassword)
 
 	// Protected routes
 	protected := r.Group("/api")

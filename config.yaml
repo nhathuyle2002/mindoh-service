@@ -7,3 +7,11 @@ db:
   name: ${POSTGRES_NAME}
 jwt:
   secret: ${JWT_SECRET}
+smtp:
+  host: ${SMTP_HOST}
+  port: ${SMTP_PORT}
+  username: ${SMTP_USER}
+  password: ${SMTP_PASSWORD}
+  from: ${SMTP_FROM}
+app:
+  url: ${APP_URL}

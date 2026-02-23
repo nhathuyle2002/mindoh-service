@@ -40,18 +40,30 @@ type UserUpdateRequest struct {
 
 // UserResponse is the public-facing user representation (no password hash).
 type UserResponse struct {
-	Username  string `json:"username"`
-	Email     string `json:"email"`
-	Role      string `json:"role"`
-	Name      string `json:"name,omitempty"`
-	Birthdate string `json:"birthdate,omitempty"`
-	Phone     string `json:"phone,omitempty"`
-	Address   string `json:"address,omitempty"`
-	CreatedAt string `json:"created_at"`
+	Username        string `json:"username"`
+	Email           string `json:"email"`
+	Role            string `json:"role"`
+	IsEmailVerified bool   `json:"is_email_verified"`
+	Name            string `json:"name,omitempty"`
+	Birthdate       string `json:"birthdate,omitempty"`
+	Phone           string `json:"phone,omitempty"`
+	Address         string `json:"address,omitempty"`
+	CreatedAt       string `json:"created_at"`
 }
 
 // LoginResponse is returned on successful login.
 type LoginResponse struct {
 	Token string       `json:"token"`
 	User  UserResponse `json:"user"`
+}
+
+// ForgotPasswordRequest is the request body for initiating a password reset.
+type ForgotPasswordRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+// ResetPasswordRequest is the request body for completing a password reset.
+type ResetPasswordRequest struct {
+	Token    string `json:"token"    binding:"required"`
+	Password string `json:"password" binding:"required,min=6"`
 }

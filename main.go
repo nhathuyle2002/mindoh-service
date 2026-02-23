@@ -6,6 +6,7 @@ import (
 	"mindoh-service/internal/currency"
 	"mindoh-service/internal/db"
 	"mindoh-service/internal/expense"
+	"mindoh-service/internal/mailer"
 	"mindoh-service/internal/user"
 	"os"
 
@@ -63,8 +64,16 @@ func NewService() *Services {
 	// Initialize auth service
 	authService := auth.NewAuthService(cfg)
 
+	// Initialize mailer
+	var mailSvc mailer.IMailer
+	if cfg.SMTP.Host != "" {
+		mailSvc = mailer.NewMailer(cfg.SMTP.Host, cfg.SMTP.Port, cfg.SMTP.Username, cfg.SMTP.Password, cfg.SMTP.From)
+	} else {
+		mailSvc = &mailer.NoopMailer{}
+	}
+
 	// Initialize user service
-	userService := user.NewUserService(dbInstance)
+	userService := user.NewUserService(dbInstance, mailSvc, cfg.App.URL)
 
 	// Initialize expense service
 	expenseRepo := expense.NewExpenseRepository(dbInstance)

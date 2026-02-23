@@ -167,12 +167,30 @@ definitions:
       type:
         type: string
     type: object
+  dto.ForgotPasswordRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
   dto.LoginResponse:
     properties:
       token:
         type: string
       user:
         $ref: '#/definitions/dto.UserResponse'
+    type: object
+  dto.ResetPasswordRequest:
+    properties:
+      password:
+        minLength: 6
+        type: string
+      token:
+        type: string
+    required:
+    - password
+    - token
     type: object
   dto.UserLoginRequest:
     properties:
@@ -213,6 +231,8 @@ definitions:
         type: string
       email:
         type: string
+      is_email_verified:
+        type: boolean
       name:
         type: string
       phone:
@@ -689,6 +709,29 @@ paths:
       summary: Get unique expense types
       tags:
       - expenses
+  /forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: Send a password-reset link to the provided email address
+      parameters:
+      - description: Email address
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Reset email sent
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Forgot password
+      tags:
+      - auth
   /login:
     post:
       consumes:
@@ -746,6 +789,57 @@ paths:
             additionalProperties: true
             type: object
       summary: Register a new user
+      tags:
+      - auth
+  /resend-verification:
+    post:
+      consumes:
+      - application/json
+      description: Re-send the email verification link to the given address
+      parameters:
+      - description: Email address
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Verification email sent
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Resend verification email
+      tags:
+      - auth
+  /reset-password:
+    post:
+      consumes:
+      - application/json
+      description: Set a new password using a valid password-reset token
+      parameters:
+      - description: Token and new password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Password reset successful
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid or expired token
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Reset password
       tags:
       - auth
   /users/{id}:
@@ -842,6 +936,31 @@ paths:
       summary: Update user information
       tags:
       - users
+  /verify-email:
+    get:
+      description: Confirm a user's email address using the token sent after registration
+      parameters:
+      - description: Email verification token
+        in: query
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Email verified
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid or expired token
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Verify email
+      tags:
+      - auth
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.

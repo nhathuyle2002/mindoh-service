@@ -43,6 +43,24 @@ func (r *UserRepository) Delete(id uint) error {
 	return r.DB.Delete(&dbmodel.User{}, id).Error
 }
 
+func (r *UserRepository) GetByEmail(email string) (*dbmodel.User, error) {
+	var user dbmodel.User
+	err := r.DB.Where("email = ?", email).First(&user).Error
+	return &user, err
+}
+
+func (r *UserRepository) GetByEmailVerifyToken(token string) (*dbmodel.User, error) {
+	var user dbmodel.User
+	err := r.DB.Where("email_verify_token = ?", token).First(&user).Error
+	return &user, err
+}
+
+func (r *UserRepository) GetByPasswordResetToken(token string) (*dbmodel.User, error) {
+	var user dbmodel.User
+	err := r.DB.Where("password_reset_token = ?", token).First(&user).Error
+	return &user, err
+}
+
 func HashPassword(password string) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	return string(hash), err

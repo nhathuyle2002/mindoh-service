@@ -21,4 +21,13 @@ type User struct {
 	CreatedAt    time.Time      `json:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at"`
 	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
+
+	// Email verification
+	IsEmailVerified   bool      `gorm:"default:false" json:"is_email_verified"`
+	EmailVerifyToken  string    `gorm:"index" json:"-"`
+	EmailVerifyExpiry time.Time `json:"-"`
+
+	// Password reset
+	PasswordResetToken  string    `gorm:"index" json:"-"`
+	PasswordResetExpiry time.Time `json:"-"`
 }

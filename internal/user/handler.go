@@ -212,3 +212,86 @@ func (h *UserHandler) AdminCreateUser(c *gin.Context) {
 	}
 	c.JSON(http.StatusCreated, toUserResponse(user))
 }
+
+// VerifyEmail godoc
+// @Summary Verify email
+// @Description Confirm a user's email address using the token sent after registration
+// @Tags auth
+// @Produce json
+// @Param token query string true "Email verification token"
+// @Success 200 {object} map[string]interface{} "Email verified"
+// @Failure 400 {object} map[string]interface{} "Invalid or expired token"
+// @Router /verify-email [get]
+func (h *UserHandler) VerifyEmail(c *gin.Context) {
+	token := c.Query("token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Token is required"})
+		return
+	}
+	if err := h.userService.VerifyEmail(token); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Email verified successfully"})
+}
+
+// ResendVerification godoc
+// @Summary Resend verification email
+// @Description Re-send the email verification link to the given address
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body dto.ForgotPasswordRequest true "Email address"
+// @Success 200 {object} map[string]interface{} "Verification email sent"
+// @Router /resend-verification [post]
+func (h *UserHandler) ResendVerification(c *gin.Context) {
+	var req dto.ForgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+	_ = h.userService.ResendVerificationEmail(req.Email)
+	c.JSON(http.StatusOK, gin.H{"message": "If that email exists, a verification link has been sent"})
+}
+
+// ForgotPassword godoc
+// @Summary Forgot password
+// @Description Send a password-reset link to the provided email address
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body dto.ForgotPasswordRequest true "Email address"
+// @Success 200 {object} map[string]interface{} "Reset email sent"
+// @Router /forgot-password [post]
+func (h *UserHandler) ForgotPassword(c *gin.Context) {
+	var req dto.ForgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+	_ = h.userService.ForgotPassword(req.Email)
+	c.JSON(http.StatusOK, gin.H{"message": "If that email exists, a reset link has been sent"})
+}
+
+// ResetPassword godoc
+// @Summary Reset password
+// @Description Set a new password using a valid password-reset token
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body dto.ResetPasswordRequest true "Token and new password"
+// @Success 200 {object} map[string]interface{} "Password reset successful"
+// @Failure 400 {object} map[string]interface{} "Invalid or expired token"
+// @Router /reset-password [post]
+func (h *UserHandler) ResetPassword(c *gin.Context) {
+	var req dto.ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+	if err := h.userService.ResetPassword(req.Token, req.Password); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Password reset successfully"})
+}
