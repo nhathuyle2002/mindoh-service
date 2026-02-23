@@ -20,13 +20,10 @@ type Config struct {
 	JWT struct {
 		Secret string `yaml:"secret"`
 	} `yaml:"jwt"`
-	SMTP struct {
-		Host     string `yaml:"host"`
-		Port     int    `yaml:"port"`
-		Username string `yaml:"username"`
-		Password string `yaml:"password"`
-		From     string `yaml:"from"`
-	} `yaml:"smtp"`
+	Brevo struct {
+		APIKey string `yaml:"api_key"`
+		From   string `yaml:"from"`
+	} `yaml:"brevo"`
 	App struct {
 		URL string `yaml:"url"` // Frontend base URL for email links
 	} `yaml:"app"`
@@ -57,9 +54,8 @@ func LoadConfig() *Config {
 		"db_host", cfg.DB.Host,
 		"db_port", cfg.DB.Port,
 		"db_name", cfg.DB.Name,
-		"smtp_host", cfg.SMTP.Host,
-		"smtp_port", cfg.SMTP.Port,
-		"smtp_from", cfg.SMTP.From,
+		"brevo_api_key_set", cfg.Brevo.APIKey != "",
+		"brevo_from", cfg.Brevo.From,
 		"app_url", cfg.App.URL,
 	)
 	return cfg

@@ -10,7 +10,7 @@ Backend REST API for the Mindoh expense tracker, built with Go + Gin + GORM.
 - **Supabase** — managed PostgreSQL (production)
 - **Railway** — deployment
 - **JWT (HS256)** — authentication; token payload carries `username` and `role` (no numeric user ID)
-- **Brevo SMTP** — transactional email (verification, password reset)
+- **Brevo** — transactional email via HTTP API (`BREVO_API_KEY`) — same mechanism in dev and prod
 - **Swagger** — API docs (`/swagger/index.html`)
 
 ## Project Structure
@@ -50,7 +50,8 @@ mindoh-service/
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | /api/users/me | Current user profile |
-| PUT | /api/users/me | Update current user profile |
+| PUT | /api/users/me | Update profile (name, phone, address, birthdate) |
+| PUT | /api/users/me/email | Change email — resets verification and resends confirmation |
 | POST | /api/users/change-password | Change password (requires current password) |
 | GET | /api/users/:id | Get user by ID |
 | PUT | /api/users/:id | Update user by ID |
@@ -80,6 +81,7 @@ mindoh-service/
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | /api/admin/users | Create user with explicit role |
+| PUT | /api/admin/users/:id/email | Update any user's email (resets verification) |
 
 > **Note:** User responses never include a numeric `id`. The JWT payload stores `username` instead of a sequential user ID to avoid leaking enumerable identifiers.
 
@@ -126,11 +128,8 @@ Swagger: http://localhost:8080/swagger/index.html
 | POSTGRES_NAME | DB name | mindoh |
 | JWT_SECRET | JWT signing secret | your-secret |
 | ALLOWED_ORIGINS | CORS origins (comma-separated) | * |
-| SMTP_HOST | SMTP server host | smtp-relay.brevo.com |
-| SMTP_PORT | SMTP server port | 587 |
-| SMTP_USER | SMTP login username | user@smtp-brevo.com |
-| SMTP_PASSWORD | SMTP login password | your-smtp-key |
-| SMTP_FROM | Verified sender address | you@example.com |
+| BREVO_API_KEY | Brevo HTTP API key (preferred, works on Railway) | your-brevo-api-key |
+| BREVO_FROM | Verified sender address | you@example.com |
 | APP_URL | Frontend base URL (for email links) | http://localhost:5173 |
 
 ## Docker

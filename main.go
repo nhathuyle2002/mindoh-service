@@ -69,13 +69,13 @@ func NewService() *Services {
 	// Initialize auth service
 	authService := auth.NewAuthService(cfg)
 
-	// Initialize mailer
+	// Initialize mailer — Brevo HTTP API (works in both dev and prod)
 	var mailSvc mailer.IMailer
-	if cfg.SMTP.Host != "" {
-		logger.L.Info("mailer configured", "host", cfg.SMTP.Host, "port", cfg.SMTP.Port, "from", cfg.SMTP.From)
-		mailSvc = mailer.NewMailer(cfg.SMTP.Host, cfg.SMTP.Port, cfg.SMTP.Username, cfg.SMTP.Password, cfg.SMTP.From)
+	if cfg.Brevo.APIKey != "" {
+		logger.L.Info("mailer: using Brevo HTTP API", "from", cfg.Brevo.From)
+		mailSvc = mailer.NewBrevoMailer(cfg.Brevo.APIKey, cfg.Brevo.From)
 	} else {
-		logger.L.Warn("SMTP not configured, using noop mailer")
+		logger.L.Warn("mailer: BREVO_API_KEY not set — using noop mailer (emails will be skipped)")
 		mailSvc = &mailer.NoopMailer{}
 	}
 
